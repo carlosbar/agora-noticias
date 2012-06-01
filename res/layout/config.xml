@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="5dp"
+        android:weightSum="10" >
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="5.5" >
+
+            <TextView
+                android:id="@+id/intervalCaption"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/interval"
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="4.5" >
+
+            <SeekBar
+                android:id="@+id/interval"
+                android:layout_marginRight="7dp"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:progress="0" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="5dp"
+        android:weightSum="10" >
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="5.5" >
+
+            <TextView
+                android:id="@+id/maxFeedsCaption"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/maxFeeds"
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="4.5" >
+
+            <SeekBar
+                android:id="@+id/maxFeeds"
+                android:layout_marginRight="7dp"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:progress="0" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout android:gravity="center_vertical" android:weightSum="10" android:padding="5dp" android:layout_margin="5dp" android:layout_width="fill_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="5.5">
+
+	        <TextView
+	            android:id="@+id/rssFeedsCaption"
+	            android:layout_width="fill_parent"
+	            android:layout_height="wrap_content"
+	            android:text="@string/rssFeeds"
+	            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="4.5" >
+
+        <Button
+            android:id="@+id/rssFeeds"
+            android:layout_marginRight="7dp"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/change" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

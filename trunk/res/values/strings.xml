@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="hello">Hello World, RssviewerActivity!</string>
+    <string name="app_name">Agora Notícias</string>
+    <string name="loading">Carregando...</string>
+    <string name="invalid_rss_feed">Endereço do servidor inválido</string>
+    <string name="lastUpdate">Última atualização</string>
+    <string name="updating">Atualizando</string>
+    <string name="interval">Intervalo de atualização</string>
+    <string name="goLeft">&lt;</string>
+    <string name="goRight">&gt;</string>
+    <string name="connectionError">Erro ao conectar no serviço</string>
+    <string name="rssFeeds">Canais de RSS</string>
+    <string name="change">Alterar</string>
+    <string name="minutes">minutos</string>
+    <string name="maxFeeds">Quantidade de itens</string>
+    <string name="items">itens</string>
+</resources>

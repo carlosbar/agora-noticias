@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.innercalc.agora"
+    android:versionCode="1"
+    android:versionName="1.0" >
+	<uses-permission android:name="android.permission.INTERNET" />
+    <uses-sdk android:minSdkVersion="7" android:targetSdkVersion="7"/>
+
+  	<application
+		android:icon="@drawable/rss"
+		android:label="@string/app_name" >
+		<receiver
+			android:name=".Widget"
+			android:label="@string/app_name" >
+			<intent-filter>
+				<action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+				<action android:name="com.innercalc.agora.CHANGE_TEXT" />
+				<action android:name="com.innercalc.agora.START_WIDGET" />
+				<action android:name="com.innercalc.agora.UPDATE_RSS" />
+				<action android:name="com.innercalc.agora.CHANGE_PAGE" />
+				<action android:name="com.innercalc.agora.OPEN_LINK" />
+			</intent-filter>
+			<meta-data
+				android:name="android.appwidget.provider"
+				android:resource="@xml/widget_provider" />
+		</receiver>
+		<activity android:name="com.innercalc.agora.Configure" android:launchMode="standard">
+			<intent-filter>
+				<action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+			</intent-filter>
+		</activity>
+		<service 
+			android:name="com.innercalc.agora.LocalService"
+			android:enabled="true" />
+		
+		<service android:name="com.innercalc.agora.NewsService"
+             android:permission="android.permission.BIND_REMOTEVIEWS" />		
+	</application>
+
+</manifest>

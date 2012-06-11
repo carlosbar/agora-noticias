@@ -35,8 +35,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
+import android.widget.Toast;
 
 public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 	final	public	static	int							MAXFEEDS_THIRTY	= 30;
@@ -80,6 +82,10 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 		updateCurrentChannel();
 		if(page == 0) {
 			updateList();
+		} else {
+			RemoteViews views=new RemoteViews(ctxt.getPackageName(),R.layout.main);
+			views.setScrollPosition(R.id.newsList,0);
+			AppWidgetManager.getInstance(ctxt).notifyAppWidgetViewDataChanged(appWidgetId,R.id.newsList);
 		}
 	}
 
@@ -115,8 +121,7 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 				/* current date & time */
 				SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
 				channel.setUpdate(sdf.format(new Date(System.currentTimeMillis())));
-				/* add to linked list */
-	    		list.add(channel);
+				channel.setLink(rss[c]);
 	    		/* get document */
 				DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
 				DocumentBuilder builder = builderFactory.newDocumentBuilder();
@@ -126,9 +131,22 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 					document = builder.parse(rss[c]);
 					root = document.getDocumentElement();
 				} catch (Exception e) {
-					channel.addItem(ctxt.getString(R.string.connectionError),Widget.CONNECTION_ERROR,"");
+					int x;
+					for(x=0;x < channelList.size();x++) {
+						if(channelList.get(x).getLink().equals(channel.getLink())) {
+							channel = channelList.get(x);
+							break;
+						}
+					}
+					if(x >= channelList.size()) {
+						channel.addItem(ctxt.getString(R.string.connectionError),Widget.CONNECTION_ERROR,"");
+					}
+					/* add to linked list */
+		    		list.add(channel);
 					continue;
 				}
+				/* add to linked list */
+	    		list.add(channel);
 				NodeList items = root.getElementsByTagName("channel");
 				for(int x=0;items != null && x < items.getLength();x++) {
 					NodeList item = items.item(x).getChildNodes();
@@ -211,6 +229,8 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 	public int getCount() {
 		RssChannel channel = currentChannel;
 		
+		Log.d("teste",(channel == null) ? "channel is null" : channel.getTitle()+":"+channel.getList().size());
+		
 		return((channel != null) ? channel.getList().size() : 0);
 	}
 
@@ -290,6 +310,7 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 	public class RssChannel {
 		private	LinkedList<RssItem>	list = new LinkedList<RssItem>();
 		private	String				title;
+		private String				link;
 		private String				update;
 		private	int					position;
 		
@@ -308,6 +329,12 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 					break;
 				}
 			}
+		}
+		public void setLink(String link) {
+			this.link = link;
+		}
+		public String getLink() {
+			return (this.link == null) ? "" : this.link;
 		}
 		public int getPosition() {
 			return(this.position);

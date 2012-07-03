@@ -16,4 +16,6 @@
     <string name="minutes">minutos</string>
     <string name="maxFeeds">Quantidade de itens</string>
     <string name="items">itens</string>
+    <string name="widget_name_md">Agora Notícias (4x3)</string>
+    <string name="widget_name_xl">Agora Notícias (5x4)</string>
 </resources>

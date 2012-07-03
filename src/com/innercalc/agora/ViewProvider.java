@@ -40,7 +40,7 @@ import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 import android.widget.Toast;
 
-public class NewsView implements RemoteViewsService.RemoteViewsFactory {
+public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	final	public	static	int							MAXFEEDS_THIRTY	= 30;
 	final	public	static	int							MAXFEEDS_FIFTEEN= 15;
 	final	public	static	int							MAXFEEDS_TEN	= 10;
@@ -52,19 +52,20 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 			private 		LinkedList<RssChannel>		channelList		= new LinkedList<RssChannel>();
 			private			RssChannel					currentChannel	= null;
 			private			int							connectionFail	= 0;
+			private			String						className		= "";
 	
 	private Context ctxt=null;
 	private int appWidgetId;
 
 	public void onCreate() {
-		// TODO Auto-generated method stub
+		Toast.makeText(ctxt,"Create",Toast.LENGTH_LONG).show();
 	}
 	
 	public void onDestroy() {
 		// TODO Auto-generated method stub
 	}
 	public void onDataSetChanged() {
-		SharedPreferences prefs = ctxt.getSharedPreferences(Widget.PREFS_DB, 0);
+		SharedPreferences prefs = ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
 		int page = prefs.getInt("changePage",0); 
 		if(page != 0) {
 			SharedPreferences.Editor prefset = prefs.edit();
@@ -104,20 +105,28 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 			}
 			views.setTextViewText(R.id.update,ctxt.getString(R.string.updating));
 		}
-		ComponentName cn = new ComponentName(ctxt, Widget.class);
-		AppWidgetManager.getInstance(ctxt).updateAppWidget(cn,views);
+		try {
+			Class<?> updtClass = Class.forName(className);
+			Log.d("Concrete Class Name",updtClass.getCanonicalName());
+			ComponentName cn = new ComponentName(ctxt,updtClass);
+			AppWidgetManager.getInstance(ctxt).updateAppWidget(cn,views);
+		} catch (Exception e) {
+			AppWidgetManager.getInstance(ctxt).updateAppWidget(appWidgetId,views);
+		}
 	}
 	
 	/* update channel info */
 	private void updateList() {
-		final LinkedList<RssChannel> list = new LinkedList<RssChannel>();
-		final SharedPreferences prefs = ctxt.getSharedPreferences(Widget.PREFS_DB, 0);
+		final	LinkedList<RssChannel> list = new LinkedList<RssChannel>();
+		final	SharedPreferences prefs = ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
+		int		updatedChannel = 0;
 
 		try {
 			String [] rss = prefs.getString("rssfeed","").split("[|]");
 			int maxFeeds = prefs.getInt("maxFeeds",MAXFEEDS_THIRTY);
 			for(int c=0;c < rss.length;c++) {
 				RssChannel channel = new RssChannel(c);
+	    		list.add(channel);
 				/* current date & time */
 				SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
 				channel.setUpdate(sdf.format(new Date(System.currentTimeMillis())));
@@ -130,23 +139,10 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 				try {
 					document = builder.parse(rss[c]);
 					root = document.getDocumentElement();
+					updatedChannel++;
 				} catch (Exception e) {
-					int x;
-					for(x=0;x < channelList.size();x++) {
-						if(channelList.get(x).getLink().equals(channel.getLink())) {
-							channel = channelList.get(x);
-							break;
-						}
-					}
-					if(x >= channelList.size()) {
-						channel.addItem(ctxt.getString(R.string.connectionError),Widget.CONNECTION_ERROR,"");
-					}
-					/* add to linked list */
-		    		list.add(channel);
 					continue;
 				}
-				/* add to linked list */
-	    		list.add(channel);
 				NodeList items = root.getElementsByTagName("channel");
 				for(int x=0;items != null && x < items.getLength();x++) {
 					NodeList item = items.item(x).getChildNodes();
@@ -189,39 +185,29 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 			e.printStackTrace();
 		}
 		/* create interval update */
-		Intent update = new Intent(ctxt,Widget.class);
-		update.setAction(Widget.START_WIDGET);
+		Intent update = new Intent(MyWidget.START_WIDGET);
 		update.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
 		PendingIntent alarmIntent = PendingIntent.getBroadcast(ctxt, 0, update,PendingIntent.FLAG_CANCEL_CURRENT);
 		Calendar ct = Calendar.getInstance();
 		ct.setTimeInMillis(System.currentTimeMillis());
-		if(!list.isEmpty()) {
+		if(updatedChannel > 0) {
 			connectionFail = 0;
 			ct.add(Calendar.MINUTE,prefs.getInt("updateTimeout",30) > FIVE_MINUTES ? prefs.getInt("updateTimeout",30) : FIVE_MINUTES);
+			/* update channels */
+			channelList=list;
+			currentChannel = (list.isEmpty()) ? null : list.getFirst();
+			updateCurrentChannel();
 		} else {
-			if(++connectionFail < 5) {
-				ct.add(Calendar.MINUTE,THREE_MINUTES);
-			} else if(++connectionFail < 10) {
-				ct.add(Calendar.MINUTE,FIVE_MINUTES);
-			} else if(++connectionFail < 20) {
-				ct.add(Calendar.MINUTE,TEN_MINUTES);
-			} else if(++connectionFail < 30) {
-				ct.add(Calendar.MINUTE,TWENTY_MINUTES);
-			} else {
-				ct.add(Calendar.MINUTE,THIRTY_MINUTES);
-			}
+			ct.add(Calendar.MINUTE,FIVE_MINUTES);
 		}
 		AlarmManager alarmManager = (AlarmManager) ctxt.getSystemService(Context.ALARM_SERVICE);
 		alarmManager.set(AlarmManager.RTC, ct.getTimeInMillis(),alarmIntent);
-		/* update channels */
-		channelList=list;
-		currentChannel = (list.isEmpty()) ? null : list.getFirst();
-		updateCurrentChannel();
 	}
 	
-	public NewsView(Context ctxt, Intent intent) {
+	public ViewProvider(Context ctxt, Intent intent) {
 	    this.ctxt=ctxt;
 	    appWidgetId=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
+	    className=intent.getStringExtra("className");
 		updateCurrentChannel();
 	    updateList();
 	}
@@ -230,7 +216,6 @@ public class NewsView implements RemoteViewsService.RemoteViewsFactory {
 		RssChannel channel = currentChannel;
 		
 		Log.d("teste",(channel == null) ? "channel is null" : channel.getTitle()+":"+channel.getList().size());
-		
 		return((channel != null) ? channel.getList().size() : 0);
 	}
 

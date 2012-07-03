@@ -2,13 +2,14 @@ package com.innercalc.agora;
 
 import android.content.Intent;
 import android.widget.RemoteViewsService;
+import android.widget.Toast;
 
-public class NewsService extends RemoteViewsService {
+public class ViewService extends RemoteViewsService {
 
 	@Override
 	public RemoteViewsFactory onGetViewFactory(Intent intent) {
 		// TODO Auto-generated method stub
-	    return(new NewsView(this.getApplicationContext(),intent));
+	    return(new ViewProvider(this.getApplicationContext(),intent));
 	}
 
 }

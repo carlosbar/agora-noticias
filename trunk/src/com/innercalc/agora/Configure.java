@@ -70,8 +70,8 @@ public class Configure extends Activity {
 			"Folha.com - Cotidiano",
 			"Folha.com - Ciência"};
 	private String userFeeds = join(urls,"|");
-	private int interval = NewsView.THIRTY_MINUTES;
-	private int maxFeeds = NewsView.MAXFEEDS_FIFTEEN;
+	private int interval = ViewProvider.THIRTY_MINUTES;
+	private int maxFeeds = ViewProvider.MAXFEEDS_FIFTEEN;
 
 	public String join(String [] arr,String c)
 	{
@@ -94,7 +94,7 @@ public class Configure extends Activity {
 		   out of the widget placement if they press the back button. */
 		setResult(RESULT_CANCELED);
 
-		SharedPreferences prefs = getSharedPreferences(Widget.PREFS_DB, 0);
+		SharedPreferences prefs = getSharedPreferences(MyWidget.PREFS_DB, 0);
 		userFeeds = prefs.getString("rssfeed",userFeeds);
 		interval = prefs.getInt("updateTimeout",interval);
 		maxFeeds = prefs.getInt("maxFeeds",maxFeeds);
@@ -105,11 +105,11 @@ public class Configure extends Activity {
 			mAppWidgetId = extras.getInt(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
 		}
 
-		((SeekBar) findViewById(R.id.maxFeeds)).setProgress(maxFeeds-NewsView.MAXFEEDS_TEN);
-		((SeekBar) findViewById(R.id.maxFeeds)).setMax(NewsView.MAXFEEDS_THIRTY-NewsView.MAXFEEDS_TEN);
+		((SeekBar) findViewById(R.id.maxFeeds)).setProgress(maxFeeds-ViewProvider.MAXFEEDS_TEN);
+		((SeekBar) findViewById(R.id.maxFeeds)).setMax(ViewProvider.MAXFEEDS_THIRTY-ViewProvider.MAXFEEDS_TEN);
 		((SeekBar) findViewById(R.id.maxFeeds)).setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 			public void onProgressChanged(SeekBar arg0, int arg1, boolean arg2) {
-				maxFeeds = arg1 + NewsView.MAXFEEDS_TEN;
+				maxFeeds = arg1 + ViewProvider.MAXFEEDS_TEN;
 			}
 			public void onStartTrackingTouch(SeekBar seekBar) {
 			}
@@ -118,11 +118,11 @@ public class Configure extends Activity {
 			}
 		});
 		
-		((SeekBar) findViewById(R.id.interval)).setProgress(interval-NewsView.FIVE_MINUTES);
-		((SeekBar) findViewById(R.id.interval)).setMax(NewsView.THIRTY_MINUTES-NewsView.FIVE_MINUTES);
+		((SeekBar) findViewById(R.id.interval)).setProgress(interval-ViewProvider.FIVE_MINUTES);
+		((SeekBar) findViewById(R.id.interval)).setMax(ViewProvider.THIRTY_MINUTES-ViewProvider.FIVE_MINUTES);
 		((SeekBar) findViewById(R.id.interval)).setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 			public void onProgressChanged(SeekBar arg0, int arg1, boolean arg2) {
-				interval = arg1 + NewsView.FIVE_MINUTES;
+				interval = arg1 + ViewProvider.FIVE_MINUTES;
 			}
 			public void onStartTrackingTouch(SeekBar seekBar) {
 			}
@@ -199,7 +199,7 @@ public class Configure extends Activity {
 		appWidgetManager.updateAppWidget(mAppWidgetId, views);
 
 		/* set name of rss location */
-		SharedPreferences prefs = getSharedPreferences(Widget.PREFS_DB, 0);
+		SharedPreferences prefs = getSharedPreferences(MyWidget.PREFS_DB, 0);
 		SharedPreferences.Editor prefset = prefs.edit();
 		prefset.putString("rssfeed",userFeeds);
 		prefset.putInt("updateTimeout",interval);
@@ -207,7 +207,7 @@ public class Configure extends Activity {
 		prefset.commit();
 		
 		/* start widget */
-		Intent start = new Intent(Widget.START_WIDGET);
+		Intent start = new Intent(MyWidget.START_WIDGET);
 		start.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, mAppWidgetId);
 		sendBroadcast(start);
 

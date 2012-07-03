@@ -58,7 +58,6 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	private int appWidgetId;
 
 	public void onCreate() {
-		Toast.makeText(ctxt,"Create",Toast.LENGTH_LONG).show();
 	}
 	
 	public void onDestroy() {

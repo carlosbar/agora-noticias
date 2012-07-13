@@ -38,7 +38,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
-import android.widget.Toast;
 
 public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	final	public	static	int							MAXFEEDS_THIRTY	= 30;
@@ -51,7 +50,6 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	final	public	static	int							THIRTY_MINUTES	= 30;
 			private 		LinkedList<RssChannel>		channelList		= new LinkedList<RssChannel>();
 			private			RssChannel					currentChannel	= null;
-			private			int							connectionFail	= 0;
 			private			String						className		= "";
 	
 	private Context ctxt=null;
@@ -140,6 +138,8 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 					root = document.getDocumentElement();
 					updatedChannel++;
 				} catch (Exception e) {
+					channel.setTitle(rss[c]);
+					channel.addItem(ctxt.getString(R.string.updating),"","");
 					continue;
 				}
 				NodeList items = root.getElementsByTagName("channel");
@@ -190,7 +190,6 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		Calendar ct = Calendar.getInstance();
 		ct.setTimeInMillis(System.currentTimeMillis());
 		if(updatedChannel > 0) {
-			connectionFail = 0;
 			ct.add(Calendar.MINUTE,prefs.getInt("updateTimeout",30) > FIVE_MINUTES ? prefs.getInt("updateTimeout",30) : FIVE_MINUTES);
 			/* update channels */
 			channelList=list;

@@ -18,4 +18,7 @@
     <string name="items">itens</string>
     <string name="widget_name_md">Agora Notícias (4x3)</string>
     <string name="widget_name_xl">Agora Notícias (5x4)</string>
+    <string name="invertSelection">Invert Selection</string>
+    <string name="all">...</string>
+    <string name="channelName">Canais</string>
 </resources>

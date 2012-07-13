@@ -1,20 +1,43 @@
 package com.innercalc.agora;
 
+import java.util.LinkedList;
+import java.util.List;
+
 import com.innercalc.agora.R;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.appwidget.AppWidgetManager;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager.NameNotFoundException;
+import android.database.DataSetObserver;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.ActionMode;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.widget.AbsListView.MultiChoiceModeListener;
+import android.widget.Adapter;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.ListAdapter;
+import android.widget.ListView;
 import android.widget.RemoteViews;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class Configure extends Activity {
@@ -93,6 +116,14 @@ public class Configure extends Activity {
 		/* Set the result to CANCELED. This will cause the widget host to cancel
 		   out of the widget placement if they press the back button. */
 		setResult(RESULT_CANCELED);
+		String versionName;
+		try {
+			versionName = this.getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+		} catch (NameNotFoundException e) {
+			e.printStackTrace();
+			versionName="1";
+		}
+		setTitle(String.format("%s v. %s",getString(R.string.app_name),versionName));
 
 		SharedPreferences prefs = getSharedPreferences(MyWidget.PREFS_DB, 0);
 		userFeeds = prefs.getString("rssfeed",userFeeds);
@@ -134,35 +165,48 @@ public class Configure extends Activity {
 		((Button) findViewById(R.id.rssFeeds)).setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
 				final AlertDialog.Builder dlg = new AlertDialog.Builder(Configure.this);
-				final boolean [] checkedList = new boolean[names.length];
-				String [] userlist = userFeeds.split("[|]");
+				final LayoutInflater layoutInflater = LayoutInflater.from(Configure.this);
+				final View channel = layoutInflater.inflate(R.layout.channel, null);
+				dlg.setView(channel);
+				String [] userList = userFeeds.split("[|]");
+				ChannelItem [] itemList = new ChannelItem[urls.length];
 
 				/* verify which feeds are turned on */
-				for(int c=0;c < checkedList.length;c++) {
-					for(int i=0;i < userlist.length;i++) {
-						if(userlist[i].equals(urls[c])) {
-							checkedList[c] = true;
+				for(int c=0;c < urls.length;c++) {
+					boolean checked = false;
+					for(int i=0;i < userList.length;i++) {
+						if(userList[i].equals(urls[c])) {
+							checked = true;
 							break;
 						}
 					}
+	    			itemList[c] = new ChannelItem(urls[c],names[c],checked);
 				}
-				dlg.setMultiChoiceItems(names,checkedList,new DialogInterface.OnMultiChoiceClickListener() {
-					public void onClick(DialogInterface dialog, int which, boolean isChecked) {
-						if(!isChecked) {
-							int count = 0;
-							for(int c=0;c < checkedList.length;c++) {
-								if(c == which) continue;
-								if(checkedList[c]) count++;
-							}
-							checkedList[which] = (count > 0) ? false : true;
+				final ChannelAdapter adapter = new ChannelAdapter(Configure.this,itemList);
+				((ListView) channel.findViewById(R.id.channelList)).setAdapter(adapter);
+
+				/**
+				 * check/uncheck all buttons
+				 */
+				((Button) channel.findViewById(R.id.allButtons)).setOnClickListener(new OnClickListener() {
+					public void onClick(View v) {
+						boolean checked = adapter.getChecked(0);
+
+						for(int x=0;x < adapter.getCount();x++) {
+							adapter.setChecked(x,!checked);
 						}
 					}
 				});
+				
+				/**
+				 * back button has been pressed
+				 */
 				dlg.setOnCancelListener(new DialogInterface.OnCancelListener() {
 					public void onCancel(DialogInterface dialog) {
 						String feeds = "";
-						for(int x=0;x < urls.length;x++) {
-							if(!checkedList[x]) {
+						
+						for(int x=0;x < adapter.getCount();x++) {
+							if(!adapter.getItem(x).checked) {
 								continue;
 							}
 							if(feeds.length() > 0) {
@@ -219,5 +263,70 @@ public class Configure extends Activity {
 		/* finish the activity */
 		finish();
     }
+    
+    public class ChannelItem {
+    	public	String		name;
+    	public	String		url;
+    	public	boolean		checked;
+    	public ChannelItem(String u,String n,boolean c) {
+    		url = u;
+    		name = n;
+    		checked = c;
+    	}
+    }
+    
+    public class ChannelAdapter extends ArrayAdapter<ChannelItem> {
+    	private Context ctxt;
+    	private ChannelItem [] itemList;
+
+    	public ChannelAdapter(Context context, ChannelItem [] itemList) {
+    		super(context,android.R.layout.simple_list_item_1,itemList);
+    		ctxt = context;
+    		this.itemList = itemList;
+    	}
+    	
+    	public void setChecked(int position,boolean checked) {
+    		itemList[position].checked = checked;
+    		super.notifyDataSetChanged();
+    	}
+
+    	public boolean getChecked(int position) {
+    		return itemList[position].checked;
+    	}
+    	
+    	@Override
+    	public int getCount() {
+    		return itemList.length;
+    	}
+
+    	@Override
+		public View getView(int position, View convertView, ViewGroup parent) {
+			View			checkView;
+			
+			LayoutInflater inflater = (LayoutInflater) ctxt.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+			checkView =  inflater.inflate(R.layout.checkrow,parent,false);
+			ChannelItem item = itemList[position];	
+			Log.d("Create View","postion " + position + " Checked: " + item.checked + " name: " + item.name);
+			CheckBox cb=(CheckBox) checkView.findViewById(R.id.checked);
+			if(cb != null) {
+				cb.setId(position);
+				cb.setChecked(item.checked);
+				cb.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+					public void onCheckedChanged(CompoundButton button, boolean checked) {
+						CheckBox cb = (CheckBox) button;
+						ChannelItem item = itemList[cb.getId()];
+						item.checked = checked;
+						Log.d("Create View","postion " + cb.getId() + " Checked: " + item.checked + " name: " + item.name);
+					}
+				});
+			}
+			TextView tv = (TextView) checkView.findViewById(R.id.title);
+			if(tv != null) {
+				tv.setText(item.name);
+			}
+			return checkView;
+		}
+   }
+    
     
 }

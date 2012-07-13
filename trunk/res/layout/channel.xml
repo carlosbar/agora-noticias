@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:weightSum="10"
+    android:orientation="vertical" >
+
+    <LinearLayout android:layout_weight="1" android:layout_width="fill_parent" android:layout_height="0dp">
+	    <LinearLayout
+	        android:weightSum="7"
+	        android:layout_width="fill_parent"
+	        android:layout_height="fill_parent"
+	        android:layout_margin="5dp">
+
+	        <Button
+	            android:layout_weight="1.3"
+	            android:id="@+id/allButtons"
+	            android:layout_width="0dp"
+	            android:layout_height="wrap_content"
+	            android:text="@string/all" />
+	        
+		   <TextView
+		       android:id="@+id/title"
+		       android:layout_width="0dp"
+		       android:layout_height="fill_parent"
+		       android:layout_weight="5.7"
+		       android:singleLine="true"
+		       android:layout_marginLeft="5dp"
+		       android:gravity="left"
+		       android:text="@string/channelName"
+		       android:textAppearance="?android:attr/textAppearanceMedium" />
+	
+	    </LinearLayout>
+	</LinearLayout>
+    <LinearLayout android:layout_weight="9" android:layout_width="fill_parent" android:layout_height="0dp" android:layout_margin="5dp">
+	    <ListView
+	        android:id="@+id/channelList"
+	        android:layout_width="fill_parent"
+	        android:layout_height="fill_parent" >
+	    </ListView>
+	</LinearLayout>
+</LinearLayout>

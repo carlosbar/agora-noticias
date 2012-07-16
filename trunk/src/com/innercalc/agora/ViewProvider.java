@@ -31,9 +31,13 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.RemoteViews;
@@ -116,18 +120,13 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	private void updateList() {
 		final	LinkedList<RssChannel> list = new LinkedList<RssChannel>();
 		final	SharedPreferences prefs = ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
-		int		updatedChannel = 0;
-
+		DatabaseHandler db = new DatabaseHandler(ctxt);
+		
 		try {
 			String [] rss = prefs.getString("rssfeed","").split("[|]");
 			int maxFeeds = prefs.getInt("maxFeeds",MAXFEEDS_THIRTY);
 			for(int c=0;c < rss.length;c++) {
 				RssChannel channel = new RssChannel(c);
-	    		list.add(channel);
-				/* current date & time */
-				SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
-				channel.setUpdate(sdf.format(new Date(System.currentTimeMillis())));
-				channel.setLink(rss[c]);
 	    		/* get document */
 				DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
 				DocumentBuilder builder = builderFactory.newDocumentBuilder();
@@ -136,12 +135,21 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 				try {
 					document = builder.parse(rss[c]);
 					root = document.getDocumentElement();
-					updatedChannel++;
 				} catch (Exception e) {
-					channel.setTitle(rss[c]);
-					channel.addItem(ctxt.getString(R.string.updating),"","");
+					RssChannel dbchannel = db.getChannel(c);
+					if(dbchannel == null) {
+						channel.setTitle(rss[c]);
+						channel.addItem(ctxt.getString(R.string.updating),"","");
+						dbchannel = channel;
+					}
+		    		list.add(dbchannel);
 					continue;
 				}
+				/* current date & time */
+				SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+				channel.setUpdate(sdf.format(new Date(System.currentTimeMillis())));
+				channel.setLink(rss[c]);
+	    		list.add(channel);
 				NodeList items = root.getElementsByTagName("channel");
 				for(int x=0;items != null && x < items.getLength();x++) {
 					NodeList item = items.item(x).getChildNodes();
@@ -179,6 +187,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 					}
 					channel.addItem(itemtitle, itemlink, itempublished);
 				}
+				db.addChannel(channel);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -189,7 +198,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		PendingIntent alarmIntent = PendingIntent.getBroadcast(ctxt, 0, update,PendingIntent.FLAG_CANCEL_CURRENT);
 		Calendar ct = Calendar.getInstance();
 		ct.setTimeInMillis(System.currentTimeMillis());
-		if(updatedChannel > 0) {
+		if(list.size() > 0) {
 			ct.add(Calendar.MINUTE,prefs.getInt("updateTimeout",30) > FIVE_MINUTES ? prefs.getInt("updateTimeout",30) : FIVE_MINUTES);
 			/* update channels */
 			channelList=list;
@@ -300,6 +309,14 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		public RssChannel(int position) {
 			this.position = position;
 		}
+		public RssChannel(int position, String title, String link, String update)
+		{
+			this.position = position;
+			this.title = title;
+			this.link = link;
+			this.update = update;
+		}
+		
 		public RssItem addItem(String title,String link,String published) {
 			RssItem item = new RssItem(title,link,published);
 			this.list.add(item);
@@ -336,6 +353,127 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		}
 		public LinkedList<RssItem> getList() {
 			return this.list;
+		}
+	}
+	
+	public class DatabaseHandler extends SQLiteOpenHelper {
+	    private static final int		DATABASE_VERSION			= 1;
+	    private static final String		DATABASE_NAME				= "newsdb";
+	    private static final String		TABLE_RSSCHANNEL			= "channel";
+	    private static final String		TABLE_RSSCHANNEL_ID			= "id";
+	    private static final String		TABLE_RSSCHANNEL_TITLE		= "title";
+	    private static final String		TABLE_RSSCHANNEL_LINK		= "link";
+	    private static final String		TABLE_RSSCHANNEL_UPDATE		= "upd";
+	    private static final String		TABLE_RSSITEM				= "item";
+	    private static final String		TABLE_RSSITEM_ID			= "id";
+	    private static final String		TABLE_RSSITEM_TITLE			= "title";
+	    private static final String		TABLE_RSSITEM_LINK			= "link";
+	    private static final String		TABLE_RSSITEM_PUBLISHED		= "published";
+	    private static final String		TABLE_RSSITEM_CHANNELID		= "channelid";
+	 
+	    public DatabaseHandler(Context context) {
+	        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+	    }
+
+		@Override
+		public void onCreate(SQLiteDatabase db) {
+	    	String createChannel = "CREATE TABLE IF NOT EXISTS " + TABLE_RSSCHANNEL + " (" + TABLE_RSSCHANNEL_ID + " INT, " + TABLE_RSSCHANNEL_TITLE +" TEXT, " + TABLE_RSSCHANNEL_LINK + " TEXT, " + TABLE_RSSCHANNEL_UPDATE + " TEXT);";
+	    	String createItems = "CREATE TABLE IF NOT EXISTS " + TABLE_RSSITEM + " (" + TABLE_RSSITEM_ID + " INT, " + TABLE_RSSITEM_TITLE + " TEXT, " + TABLE_RSSITEM_LINK + " TEXT, " + TABLE_RSSITEM_PUBLISHED + " TEXT, " + TABLE_RSSITEM_CHANNELID + " INT);";
+	    	Log.d("onCreate",createChannel);
+	    	Log.d("onCreate",createItems);
+	        db.execSQL(createChannel);
+	        db.execSQL(createItems);
+		}
+
+		/**
+		 * executed when the database if being upgraded
+		 */
+		public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+			Log.d("onUpgrade","Upgrading databases");
+	        db.execSQL("DROP TABLE IF EXISTS " + TABLE_RSSCHANNEL);
+	        db.execSQL("DROP TABLE IF EXISTS " + TABLE_RSSITEM);
+	        onCreate(db);
+		}
+		
+		/**
+		 * add a new channel into the database
+		 * @param id		channel id
+		 * @param title		channel title
+		 * @param link		channel link
+		 * @param update	channel last date&time update
+		 */
+		public void addChannel(RssChannel channel) {
+		    SQLiteDatabase db = this.getWritableDatabase();
+
+		    Log.d("addChannel","Adding channel "+channel.getPosition() + ":" + channel.getTitle());
+		    /* delete old channel */
+		    db.delete(TABLE_RSSCHANNEL, TABLE_RSSCHANNEL_ID + " = ?",new String[] {String.valueOf(channel.getPosition())});
+		    db.delete(TABLE_RSSITEM, TABLE_RSSITEM_CHANNELID + " = ?",new String[] {String.valueOf(channel.getPosition())});
+		    /* get database connection */
+		    ContentValues values = new ContentValues();
+		    /* prepare channel columns to insert into table */
+		    values.put(TABLE_RSSCHANNEL_ID,channel.getPosition());
+		    values.put(TABLE_RSSCHANNEL_TITLE,channel.getTitle());
+		    values.put(TABLE_RSSCHANNEL_LINK,channel.getLink());
+		    values.put(TABLE_RSSCHANNEL_UPDATE,channel.getUpdate());
+		    /* insert into table */
+		    db.insert(TABLE_RSSCHANNEL, null, values);
+		    /* now add items into channel */
+		    for(int x=0;x < channel.getList().size();x++) {
+			    values.clear();
+			    values.put(TABLE_RSSITEM_ID,x);
+			    values.put(TABLE_RSSITEM_TITLE,channel.getList().get(x).getTitle());
+			    values.put(TABLE_RSSITEM_LINK,channel.getList().get(x).getLink());
+			    values.put(TABLE_RSSITEM_PUBLISHED,channel.getList().get(x).getPublished());
+			    values.put(TABLE_RSSITEM_CHANNELID,channel.getPosition());
+			    /* insert into table */
+			    db.insert(TABLE_RSSITEM, null, values);
+		    }
+		    /* close database connection */
+		    db.close();			
+		}
+
+		/**
+		 * retrieve the channel
+		 * @param channelId	channel id
+		 * @return the given channel or null if not found
+		 */
+		public RssChannel getChannel(int channelId) {
+			SQLiteDatabase db = this.getReadableDatabase();
+			RssChannel channel = null;
+
+		    Log.d("getChannel","getting channel from database "+channelId);
+		    Cursor cursor = db.query(TABLE_RSSCHANNEL, new String[] {TABLE_RSSCHANNEL_ID,TABLE_RSSCHANNEL_TITLE, TABLE_RSSCHANNEL_LINK,TABLE_RSSCHANNEL_UPDATE},TABLE_RSSCHANNEL_ID + " = ?",new String [] {String.valueOf(channelId)}, null, null, TABLE_RSSCHANNEL_ID, null);
+		    if(cursor.getCount() > 0) {
+		    	cursor.moveToFirst();
+	    		channel = new RssChannel(cursor.getInt(0),cursor.getString(1),cursor.getString(2),cursor.getString(3));
+		    	Cursor icursor = db.query(TABLE_RSSITEM, new String[] {TABLE_RSSITEM_ID,TABLE_RSSITEM_TITLE, TABLE_RSSITEM_LINK,TABLE_RSSITEM_PUBLISHED,TABLE_RSSITEM_CHANNELID}, TABLE_RSSITEM_CHANNELID + " = ?",new String[] {String.valueOf(channelId)}, null, null, TABLE_RSSITEM_ID, null);
+			    if(icursor.getCount() > 0) {
+			    	icursor.moveToFirst();
+			    	do {
+			    		channel.addItem(icursor.getString(1),icursor.getString(2),icursor.getString(3));
+			    	} while(icursor.moveToNext());
+			    }
+			    icursor.close();
+		    }
+	    	cursor.close();
+		    db.close();
+			return channel;
+		}
+		
+		/**
+		 * return number of channels
+		 * @return number of channels
+		 */
+		public int getChannelCount() {
+			SQLiteDatabase db = this.getReadableDatabase();
+			int count = 0;
+			   
+		    Cursor cursor = db.query(TABLE_RSSCHANNEL, new String[] {TABLE_RSSCHANNEL_ID}, null,null, null, null, null, null);
+	    	count = cursor.getCount();
+	    	cursor.close();
+		    db.close();
+	    	return count;
 		}
 	}
 }

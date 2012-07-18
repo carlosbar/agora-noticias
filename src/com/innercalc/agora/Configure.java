@@ -1,8 +1,11 @@
 package com.innercalc.agora;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.innercalc.agora.Channel.ChannelList;
+import com.innercalc.agora.Channel.LocalChannel;
 import com.innercalc.agora.R;
 
 import android.app.Activity;
@@ -42,57 +45,34 @@ import android.widget.Toast;
 
 public class Configure extends Activity {
 	private int mAppWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
-	private String [] urls = {
-			"http://www.estadao.com.br/rss/esportes.xml",
-			"http://www.estadao.com.br/rss/cultura.xml",
-			"http://www.estadao.com.br/rss/planeta.xml",
-			"http://www.estadao.com.br/rss/educacao.xml",
-			"http://www.estadao.com.br/rss/ciencia.xml",
-			"http://www.estadao.com.br/rss/saude.xml",
-			"http://www.estadao.com.br/rss/internacional.xml",
-			"http://www.estadao.com.br/rss/brasil.xml",
-			"http://www.estadao.com.br/rss/ultimas.xml",
-			"http://www.estadao.com.br/rss/manchetes.xml",
-			"http://feeds.folha.uol.com.br/folha/turismo/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/pensata/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/paineldoleitor/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/equilibrio/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/educacao/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/emcimadahora/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/ilustrada/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/mundo/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/informatica/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/esporte/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/dinheiro/rss091.xml",
-			"http://feeds.folha.uol.com.br/folha/brasil/rss091.xml",
-			"http://feeds.folha.uol.com.br/cotidiano/rss091.xml",
-			"http://feeds.folha.uol.com.br/ciencia/rss091.xml"};
-	private String [] names = {
-			"Estadão - Esportes",
-			"Estadão - Cultura",
-			"Estadão - Planeta",
-			"Estadão - Educação",
-			"Estadão - Ciência",
-			"Estadão - Saúde",
-			"Estadão - Internacional",
-			"Estadão - Brasil",
-			"Estadão - Últimas Notícias",
-			"Estadão - Manchetes",
-			"Folha.com - Turismo",
-			"Folha.com - Pensata",
-			"Folha.com - Painel do Leitor",
-			"Folha.com - Equilíbrio",
-			"Folha.com - Educação",
-			"Folha.com - Em cima da hora",
-			"Folha.com - Ilustrada",
-			"Folha.com - Mundo",
-			"Folha.com - Informática",
-			"Folha.com - Esporte",
-			"Folha.com - Dinheiro",
-			"Folha.com - Brasil",
-			"Folha.com - Cotidiano",
-			"Folha.com - Ciência"};
-	private String userFeeds = join(urls,"|");
+	private static String [] staticChannel[] = 
+		{{"Estadão - Esportes","http://www.estadao.com.br/rss/esportes.xml"},
+		{"Estadão - Cultura","http://www.estadao.com.br/rss/cultura.xml"},
+		{"Estadão - Planeta","http://www.estadao.com.br/rss/planeta.xml"},
+		{"Estadão - Educação","http://www.estadao.com.br/rss/educacao.xml"},
+		{"Estadão - Ciência","http://www.estadao.com.br/rss/ciencia.xml"},
+		{"Estadão - Saúde","http://www.estadao.com.br/rss/saude.xml"},
+		{"Estadão - Internacional","http://www.estadao.com.br/rss/internacional.xml"},
+		{"Estadão - Brasil","http://www.estadao.com.br/rss/brasil.xml"},
+		{"Estadão - Últimas Notícias","http://www.estadao.com.br/rss/ultimas.xml"},
+		{"Estadão - Manchetes","http://www.estadao.com.br/rss/manchetes.xml"},
+		{"Folha.com - Turismo","http://feeds.folha.uol.com.br/folha/turismo/rss091.xml"},
+		{"Folha.com - Pensata","http://feeds.folha.uol.com.br/folha/pensata/rss091.xml"},
+		{"Folha.com - Painel do Leitor","http://feeds.folha.uol.com.br/folha/paineldoleitor/rss091.xml"},
+		{"Folha.com - Equilíbrio","http://feeds.folha.uol.com.br/folha/equilibrio/rss091.xml"},
+		{"Folha.com - Educação","http://feeds.folha.uol.com.br/folha/educacao/rss091.xml"},
+		{"Folha.com - Em cima da hora","http://feeds.folha.uol.com.br/folha/emcimadahora/rss091.xml"},
+		{"Folha.com - Ilustrada","http://feeds.folha.uol.com.br/folha/ilustrada/rss091.xml"},
+		{"Folha.com - Mundo","http://feeds.folha.uol.com.br/folha/mundo/rss091.xml"},
+		{"Folha.com - Informática","http://feeds.folha.uol.com.br/folha/informatica/rss091.xml"},
+		{"Folha.com - Esporte","http://feeds.folha.uol.com.br/folha/esporte/rss091.xml"},
+		{"Folha.com - Dinheiro","http://feeds.folha.uol.com.br/folha/dinheiro/rss091.xml"},
+		{"Folha.com - Brasil","http://feeds.folha.uol.com.br/folha/brasil/rss091.xml"},
+		{"Folha.com - Cotidiano","http://feeds.folha.uol.com.br/cotidiano/rss091.xml"},
+		{"Folha.com - Ciência","http://feeds.folha.uol.com.br/ciencia/rss091.xml"}};
+
+	private ChannelList channelList = Channel.addChannel(staticChannel);
+	private ChannelList userFeeds;
 	private int interval = ViewProvider.THIRTY_MINUTES;
 	private int maxFeeds = ViewProvider.MAXFEEDS_FIFTEEN;
 
@@ -126,7 +106,7 @@ public class Configure extends Activity {
 		setTitle(String.format("%s v. %s",getString(R.string.app_name),versionName));
 
 		SharedPreferences prefs = getSharedPreferences(MyWidget.PREFS_DB, 0);
-		userFeeds = prefs.getString("rssfeed",userFeeds);
+		userFeeds = ChannelList.fromJSONString(prefs.getString("rssfeed",channelList.toJSONString()));
 		interval = prefs.getInt("updateTimeout",interval);
 		maxFeeds = prefs.getInt("maxFeeds",maxFeeds);
 		
@@ -168,19 +148,18 @@ public class Configure extends Activity {
 				final LayoutInflater layoutInflater = LayoutInflater.from(Configure.this);
 				final View channel = layoutInflater.inflate(R.layout.channel, null);
 				dlg.setView(channel);
-				String [] userList = userFeeds.split("[|]");
-				ChannelItem [] itemList = new ChannelItem[urls.length];
+				ChannelItem [] itemList = new ChannelItem[channelList.size()];
 
 				/* verify which feeds are turned on */
-				for(int c=0;c < urls.length;c++) {
+				for(int c=0;c < channelList.size();c++) {
 					boolean checked = false;
-					for(int i=0;i < userList.length;i++) {
-						if(userList[i].equals(urls[c])) {
+					for(int i=0;i < userFeeds.size();i++) {
+						if(userFeeds.get(i).url.equals(channelList.get(c).url)) {
 							checked = true;
 							break;
 						}
 					}
-	    			itemList[c] = new ChannelItem(urls[c],names[c],checked);
+	    			itemList[c] = new ChannelItem(channelList.get(c).url,channelList.get(c).name,checked);
 				}
 				final ChannelAdapter adapter = new ChannelAdapter(Configure.this,itemList);
 				((ListView) channel.findViewById(R.id.channelList)).setAdapter(adapter);
@@ -203,18 +182,12 @@ public class Configure extends Activity {
 				 */
 				dlg.setOnCancelListener(new DialogInterface.OnCancelListener() {
 					public void onCancel(DialogInterface dialog) {
-						String feeds = "";
-						
+						userFeeds.clear();
 						for(int x=0;x < adapter.getCount();x++) {
-							if(!adapter.getItem(x).checked) {
-								continue;
+							if(adapter.getItem(x).checked) {
+								userFeeds.add(channelList.get(x));
 							}
-							if(feeds.length() > 0) {
-								feeds+= "|";
-							}
-							feeds+=urls[x];
 						}
-						userFeeds = feeds;
 					}
 				});
 				dlg.setTitle(R.string.rssFeeds);
@@ -245,7 +218,7 @@ public class Configure extends Activity {
 		/* set name of rss location */
 		SharedPreferences prefs = getSharedPreferences(MyWidget.PREFS_DB, 0);
 		SharedPreferences.Editor prefset = prefs.edit();
-		prefset.putString("rssfeed",userFeeds);
+		prefset.putString("rssfeed",userFeeds.toJSONString());
 		prefset.putInt("updateTimeout",interval);
 		prefset.putInt("maxFeeds",maxFeeds);
 		prefset.commit();

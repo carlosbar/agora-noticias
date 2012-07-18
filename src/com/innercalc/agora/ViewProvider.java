@@ -14,10 +14,15 @@ From _The Busy Coder's Guide to Advanced Android Development_
 
 package com.innercalc.agora;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.LinkedList;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -27,18 +32,27 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import com.innercalc.agora.Channel.ChannelList;
+import com.innercalc.agora.Channel.LocalChannel;
+
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Handler.Callback;
+import android.os.Message;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
@@ -53,24 +67,48 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	final	public	static	int							TWENTY_MINUTES	= 20;
 	final	public	static	int							THIRTY_MINUTES	= 30;
 			private 		LinkedList<RssChannel>		channelList		= new LinkedList<RssChannel>();
-			private			RssChannel					currentChannel	= null;
+			private			RssChannel					currentChannel;
 			private			String						className		= "";
-							DatabaseHandler				db;
-	
-	private Context ctxt=null;
-	private int appWidgetId;
+			private			DatabaseHandler				db;
+			private			Handler						handler;
+			private			Context						ctxt;
+			private			int							appWidgetId;
 
+	/**
+	 * receives broadcast messages
+	 */
+	private BroadcastReceiver broadcast =  new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if(intent.getAction().equals(MyWidget.UPDATE_RSS) || intent.getAction().equals(MyWidget.START_WIDGET)) {
+				Log.d("onReceive","receiving " + intent.getAction());
+				bgUpdate();
+			}
+		}
+	};
+	
+	
+	Callback callback = new Callback() {
+		public boolean handleMessage(Message msg) {
+			if(msg.what == 0) {
+				Log.d("handleMessage","updating items list");
+				updateList();
+			}
+			return false;
+		}
+	};
+	
 	public void onCreate() {
 	}
 	
 	public void onDestroy() {
-		// TODO Auto-generated method stub
+		if(ctxt != null) ctxt.unregisterReceiver(broadcast);
 	}
 	public void onDataSetChanged() {
 		SharedPreferences prefs = ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
 		int page = prefs.getInt("changePage",0); 
+		Log.d("onDataSetChanged","Items on list:"+channelList.size()+" page:"+page+" Current Channel:" + ((currentChannel != null) ? currentChannel.toString() : "null"));
 		if(page != 0) {
-			Log.d("onDataSetChanged","Items on list:"+channelList.size()+" page:"+page);
 			SharedPreferences.Editor prefset = prefs.edit();
 			prefset.putInt("changePage",0);
 			prefset.commit();
@@ -82,7 +120,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 				currentChannel = (currentChannel != null && channelList.size() > 0) ? (currentChannel.getPosition()+1 >= channelList.size()) ? channelList.getFirst() : channelList.get(currentChannel.getPosition()+1) : null;
 				break;
 			}
-			Log.d("onDataSetChanged",(currentChannel != null) ? "Channel set to:"+currentChannel.getTitle() : "No channel available");
+			Log.d("onDataSetChanged",(currentChannel != null) ? "Channel set to:"+currentChannel.toString() : "No channel available");
 		}
 		updateCurrentChannel();
 		if(page == 0) {
@@ -121,43 +159,35 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	}
 
 	/**
-	 * update list of channels in background
-	 * @param rss		list of channels to update
-	 * @param maxFeeds	maximum number of items per channel
-	 * @param db		database
+	 * background update channels
 	 */
-	public void bgUpdate(final String []rss,final int maxFeeds,final DatabaseHandler db) {
-		new Thread(new Runnable() {
+	public void bgUpdate() {
+
+		Thread t = new Thread(new Runnable() {
 			public void run() {
-				LinkedList<RssChannel>	list 		= new LinkedList<RssChannel>();
 				int						totalUpd	= 0;
 				SharedPreferences		prefs		= ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
+				int						maxFeeds	= prefs.getInt("maxFeeds",MAXFEEDS_THIRTY);
+				ChannelList				clist		= ChannelList.fromJSONString(prefs.getString("rssfeed",""));
 
-				for(int c=0;c < rss.length;c++) {
+				for(int c=0;c < clist.size();c++) {
 					RssChannel				channel = new RssChannel(c);
 					DocumentBuilderFactory	builderFactory;
 					DocumentBuilder			builder;
 					Element					root;
 					Document				document;
 
-					channel.setLink(rss[c]);
+					channel.setLink(clist.get(c).url);
+					channel.setTitle(clist.get(c).name);
 					try {
 						builderFactory = DocumentBuilderFactory.newInstance();
 						builder = builderFactory.newDocumentBuilder();
-						document = builder.parse(rss[c]);
+						document = builder.parse(clist.get(c).url);
 						root = document.getDocumentElement();
 					} catch (Exception e) {
-						RssChannel dbchannel = db.getChannel(rss[c],c);
-						if(dbchannel == null) {
-							channel.setTitle(rss[c]);
-							channel.addItem(ctxt.getString(R.string.updating),"","");
-							dbchannel = channel;
-						}
-			    		list.add(dbchannel);
 						continue;
 					}
 					totalUpd++;
-					list.add(channel);
 					SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
 					channel.setUpdate(sdf.format(new Date(System.currentTimeMillis())));
 					NodeList items = root.getElementsByTagName("channel");
@@ -171,7 +201,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 							}
 							if(n.getNodeName().equals("title")) {
 								if(n.getFirstChild().getNodeValue() != null) {
-									channel.setTitle(n.getFirstChild().getNodeValue());
+									channel.setChannelTitle(n.getFirstChild().getNodeValue());
 								}
 								break;
 							}
@@ -200,52 +230,51 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 					db.addChannel(channel);
 				}
 				/* create interval update */
-				Intent update = new Intent(MyWidget.START_WIDGET);
+				Intent update = new Intent(MyWidget.UPDATE_RSS);
 				update.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
 				PendingIntent alarmIntent = PendingIntent.getBroadcast(ctxt, 0, update,PendingIntent.FLAG_CANCEL_CURRENT);
 				Calendar ct = Calendar.getInstance();
 				ct.setTimeInMillis(System.currentTimeMillis());
 				if(totalUpd > 0) {
 					ct.add(Calendar.MINUTE,prefs.getInt("updateTimeout",30) > FIVE_MINUTES ? prefs.getInt("updateTimeout",30) : FIVE_MINUTES);
-					/* update channels */
-					channelList=list;
-					currentChannel = (list.isEmpty()) ? null : list.getFirst();
-					updateCurrentChannel();
+					handler.sendEmptyMessage(0);
 				} else {
 					ct.add(Calendar.MINUTE,FIVE_MINUTES);
 				}
 				AlarmManager alarmManager = (AlarmManager) ctxt.getSystemService(Context.ALARM_SERVICE);
 				alarmManager.set(AlarmManager.RTC, ct.getTimeInMillis(),alarmIntent);
 			}
-		}).start();
+		});
+		t.start();
 	}
 	
 	/* update channel info */
 	private void updateList() {
 		LinkedList<RssChannel>		list		= new LinkedList<RssChannel>();
 		final	SharedPreferences	prefs		= ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
-		final	String []			rss			= prefs.getString("rssfeed","").split("[|]");
-		final	int					maxFeeds	= prefs.getInt("maxFeeds",MAXFEEDS_THIRTY);
+		ChannelList					clist		= ChannelList.fromJSONString(prefs.getString("rssfeed",""));
 
-		for(int c=0;c < rss.length;c++) {
-			RssChannel dbchannel = db.getChannel(rss[c],c);
+		Log.d("updateList","Creating channel list");
+		for(LocalChannel lc : clist) {
+			RssChannel dbchannel = db.getChannel(lc.url,list.size());
 			if(dbchannel != null) {
 	    		list.add(dbchannel);
 			}
 		}
 		channelList=list;
-		currentChannel = (list.isEmpty()) ? null : list.getFirst();
+		currentChannel=(list.isEmpty()) ? null : list.getFirst();
 		updateCurrentChannel();
-		bgUpdate(rss,maxFeeds,db);
 	}
 	
 	public ViewProvider(Context ctxt, Intent intent) {
-	    this.ctxt=ctxt;
+		this.ctxt=ctxt;
 	    appWidgetId=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
 	    className=intent.getStringExtra("className");
 		db = new DatabaseHandler(ctxt);
-		updateCurrentChannel();
-	    updateList();
+		handler = new Handler(callback);
+		ctxt.registerReceiver(broadcast,new IntentFilter(MyWidget.UPDATE_RSS));
+		ctxt.registerReceiver(broadcast,new IntentFilter(MyWidget.START_WIDGET));
+		bgUpdate();
 	}
 	
 	public int getCount() {
@@ -332,10 +361,15 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	
 	public class RssChannel {
 		private	LinkedList<RssItem>	list = new LinkedList<RssItem>();
-		private	String				title;
-		private String				link;
-		private String				update;
-		private	int					position;
+		private	String				title="";
+		private String				link="";
+		private String				update="";
+		private	int					position=0;
+		private	String				channelTitle="";
+		
+		public String toString() {
+			return this.position + ":" + this.title + ":" + this.link + ":" + this.update + ":" + this.channelTitle;
+		}
 		
 		public RssChannel(int position) {
 			this.position = position;
@@ -385,13 +419,38 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		public LinkedList<RssItem> getList() {
 			return this.list;
 		}
+		public void setChannelTitle(String title) {
+			this.channelTitle = title;
+		}
+		public String getChannelTitle() {
+			return this.channelTitle;
+		}
+	}
+
+	/**
+	 * retrieve hash from the given string
+	 * @param str string to calculate hash
+	 * @return calculated hash string
+	 */
+	public String getHash(String str) {
+		byte [] plain = str.getBytes();
+
+		try {
+			plain = str.getBytes("UTF-8");
+		} catch (Exception e) {
+			plain = str.getBytes();
+		}
+		Checksum c = new CRC32();
+		c.update(plain,0,plain.length);
+		return Long.toHexString(c.getValue());
 	}
 	
 	public class DatabaseHandler extends SQLiteOpenHelper {
-	    private static final int		DATABASE_VERSION			= 1;
+	    private static final int		DATABASE_VERSION			= 2;
 	    private static final String		DATABASE_NAME				= "newsdb";
 	    private static final String		TABLE_RSSCHANNEL			= "channel";
 	    private static final String		TABLE_RSSCHANNEL_ID			= "id";
+	    private static final String		TABLE_RSSCHANNEL_MD5		= "md5";
 	    private static final String		TABLE_RSSCHANNEL_TITLE		= "title";
 	    private static final String		TABLE_RSSCHANNEL_LINK		= "link";
 	    private static final String		TABLE_RSSCHANNEL_UPDATE		= "upd";
@@ -400,7 +459,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	    private static final String		TABLE_RSSITEM_TITLE			= "title";
 	    private static final String		TABLE_RSSITEM_LINK			= "link";
 	    private static final String		TABLE_RSSITEM_PUBLISHED		= "published";
-	    private static final String		TABLE_RSSITEM_CHANNELID		= "channelid";
+	    private static final String		TABLE_RSSITEM_CHANNELMD5	= "channelmd5";
 	 
 	    public DatabaseHandler(Context context) {
 	        super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -408,8 +467,8 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 
 		@Override
 		public void onCreate(SQLiteDatabase db) {
-	    	String createChannel = "CREATE TABLE IF NOT EXISTS " + TABLE_RSSCHANNEL + " (" + TABLE_RSSCHANNEL_ID + " INT, " + TABLE_RSSCHANNEL_TITLE +" TEXT, " + TABLE_RSSCHANNEL_LINK + " TEXT, " + TABLE_RSSCHANNEL_UPDATE + " TEXT);";
-	    	String createItems = "CREATE TABLE IF NOT EXISTS " + TABLE_RSSITEM + " (" + TABLE_RSSITEM_ID + " INT, " + TABLE_RSSITEM_TITLE + " TEXT, " + TABLE_RSSITEM_LINK + " TEXT, " + TABLE_RSSITEM_PUBLISHED + " TEXT, " + TABLE_RSSITEM_CHANNELID + " INT);";
+	    	String createChannel = "CREATE TABLE IF NOT EXISTS " + TABLE_RSSCHANNEL + " (" + TABLE_RSSCHANNEL_ID + " INT, " + TABLE_RSSCHANNEL_TITLE +" TEXT, " + TABLE_RSSCHANNEL_LINK + " TEXT, " + TABLE_RSSCHANNEL_UPDATE + " TEXT, " + TABLE_RSSCHANNEL_MD5 + " TEXT);";
+	    	String createItems = "CREATE TABLE IF NOT EXISTS " + TABLE_RSSITEM + " (" + TABLE_RSSITEM_ID + " INT, " + TABLE_RSSITEM_TITLE + " TEXT, " + TABLE_RSSITEM_LINK + " TEXT, " + TABLE_RSSITEM_PUBLISHED + " TEXT, " + TABLE_RSSITEM_CHANNELMD5 + " TEXT);";
 	    	Log.d("onCreate",createChannel);
 	    	Log.d("onCreate",createItems);
 	        db.execSQL(createChannel);
@@ -435,38 +494,35 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		 */
 		public void addChannel(RssChannel channel) {
 		    SQLiteDatabase db = this.getWritableDatabase();
-		    RssChannel oldChannel = getChannel(channel.getLink(),-1);
 
-		    Log.d("addChannel","Adding channel "+channel.getPosition() + ":" + channel.getTitle());
+		    Log.d("addChannel","Adding channel "+channel.getPosition() + ":" + channel.getTitle()+":"+getHash(channel.getLink()));
 		    /* delete old channel */
-		    if(oldChannel != null) {
-		    	Log.d("addChannel","postion == " + oldChannel.getPosition() + " title == " + oldChannel.getTitle());
-		    	db.delete(TABLE_RSSCHANNEL, TABLE_RSSCHANNEL_ID + " = ?",new String[] {String.valueOf(oldChannel.getPosition())});
-		    	db.delete(TABLE_RSSITEM, TABLE_RSSITEM_CHANNELID + " = ?",new String[] {String.valueOf(oldChannel.getPosition())});
-		    }
+	    	db.delete(TABLE_RSSCHANNEL, TABLE_RSSCHANNEL_LINK + " = ?",new String[] {channel.getLink()});
+	    	db.delete(TABLE_RSSITEM, TABLE_RSSITEM_CHANNELMD5 + " = ?",new String[] {getHash(channel.getLink())});
 		    /* get database connection */
 		    ContentValues values = new ContentValues();
 		    /* prepare channel columns to insert into table */
-		    Log.d("addChannel",channel.getPosition()+"-"+channel.getTitle()+"-"+channel.getLink()+"-"+channel.getUpdate());
+		    Log.d("addChannel",channel.getPosition()+"-"+channel.getTitle()+"-"+channel.getLink()+"-"+channel.getUpdate()+"-"+channel.getList().size());
 		    values.put(TABLE_RSSCHANNEL_ID,channel.getPosition());
+		    values.put(TABLE_RSSCHANNEL_MD5,getHash(channel.getLink()));
 		    values.put(TABLE_RSSCHANNEL_TITLE,channel.getTitle());
 		    values.put(TABLE_RSSCHANNEL_LINK,channel.getLink());
 		    values.put(TABLE_RSSCHANNEL_UPDATE,channel.getUpdate());
 		    /* insert into table */
 		    db.insert(TABLE_RSSCHANNEL, null, values);
 		    /* now add items into channel */
-		    for(int x=0;x < channel.getList().size();x++) {
+		    for(int x=0;x < channel.getList().size();++x) {
 			    values.clear();
-			    Log.d("addChannel",x+"-"+channel.getList().get(x).getTitle()+"-"+channel.getList().get(x).getLink()+"-"+channel.getList().get(x).getPublished()+"-"+channel.getPosition());
+			    Log.d("addChannel (add Item)",x+"-"+channel.getList().get(x).getTitle()+"-"+channel.getList().get(x).getLink()+"-"+channel.getList().get(x).getPublished()+"-"+channel.getPosition());
 			    values.put(TABLE_RSSITEM_ID,x);
 			    values.put(TABLE_RSSITEM_TITLE,channel.getList().get(x).getTitle());
 			    values.put(TABLE_RSSITEM_LINK,channel.getList().get(x).getLink());
 			    values.put(TABLE_RSSITEM_PUBLISHED,channel.getList().get(x).getPublished());
-			    values.put(TABLE_RSSITEM_CHANNELID,channel.getPosition());
+			    values.put(TABLE_RSSITEM_CHANNELMD5,getHash(channel.getLink()));
 			    /* insert into table */
 			    db.insert(TABLE_RSSITEM, null, values);
 		    }
-		    /* close database connection */
+		    /* ATTENTION! NEVER close database connection */
 		    //db.close();			
 		}
 
@@ -481,11 +537,12 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			RssChannel channel = null;
 
 		    Log.d("getChannel","getting channel from database "+link);
-		    Cursor cursor = db.query(TABLE_RSSCHANNEL, new String[] {TABLE_RSSCHANNEL_ID,TABLE_RSSCHANNEL_TITLE, TABLE_RSSCHANNEL_LINK,TABLE_RSSCHANNEL_UPDATE},TABLE_RSSCHANNEL_LINK + " = ?",new String [] {link}, null, null, TABLE_RSSCHANNEL_ID, null);
+		    Cursor cursor = db.query(TABLE_RSSCHANNEL, new String[] {TABLE_RSSCHANNEL_ID,TABLE_RSSCHANNEL_TITLE, TABLE_RSSCHANNEL_LINK,TABLE_RSSCHANNEL_UPDATE,TABLE_RSSCHANNEL_MD5},TABLE_RSSCHANNEL_LINK + " = ?",new String [] {link}, null, null, TABLE_RSSCHANNEL_ID, null);
 		    if(cursor.getCount() > 0) {
 		    	cursor.moveToFirst();
+		    	Log.d("getChannel",cursor.getString(0)+":"+cursor.getString(1)+":"+cursor.getString(2)+":"+cursor.getString(3)+":"+cursor.getString(4));
 	    		channel = new RssChannel((position == -1) ? cursor.getInt(0) : position,cursor.getString(1),cursor.getString(2),cursor.getString(3));
-		    	Cursor icursor = db.query(TABLE_RSSITEM, new String[] {TABLE_RSSITEM_ID,TABLE_RSSITEM_TITLE, TABLE_RSSITEM_LINK,TABLE_RSSITEM_PUBLISHED,TABLE_RSSITEM_CHANNELID}, TABLE_RSSITEM_CHANNELID + " = ?",new String[] {cursor.getString(0)}, null, null, TABLE_RSSITEM_ID, null);
+		    	Cursor icursor = db.query(TABLE_RSSITEM, new String[] {TABLE_RSSITEM_ID,TABLE_RSSITEM_TITLE, TABLE_RSSITEM_LINK,TABLE_RSSITEM_PUBLISHED,TABLE_RSSITEM_CHANNELMD5}, TABLE_RSSITEM_CHANNELMD5 + " = ?",new String[] {cursor.getString(4)}, null, null, TABLE_RSSITEM_ID, null);
 			    if(icursor.getCount() > 0) {
 			    	icursor.moveToFirst();
 			    	do {
@@ -493,8 +550,11 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			    	} while(icursor.moveToNext());
 			    }
 			    icursor.close();
+		    } else {
+			    Log.d("getChannel",link + " not found");
 		    }
 	    	cursor.close();
+		    /* ATTENTION! NEVER close database connection */
 		    //db.close();
 			return channel;
 		}

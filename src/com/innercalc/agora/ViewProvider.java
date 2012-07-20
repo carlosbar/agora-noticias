@@ -14,9 +14,6 @@ From _The Busy Coder's Guide to Advanced Android Development_
 
 package com.innercalc.agora;
 
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -52,7 +49,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Handler.Callback;
 import android.os.Message;
-import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
@@ -66,13 +62,12 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	final	public	static	int							TEN_MINUTES		= 10;
 	final	public	static	int							TWENTY_MINUTES	= 20;
 	final	public	static	int							THIRTY_MINUTES	= 30;
-			private 		LinkedList<RssChannel>		channelList		= new LinkedList<RssChannel>();
-			private			RssChannel					currentChannel;
 			private			String						className		= "";
 			private			DatabaseHandler				db;
 			private			Handler						handler;
 			private			Context						ctxt;
 			private			int							appWidgetId;
+			private			int							idCurrentChannel;
 
 	/**
 	 * receives broadcast messages
@@ -92,7 +87,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		public boolean handleMessage(Message msg) {
 			if(msg.what == 0) {
 				Log.d("handleMessage","updating items list");
-				updateList();
+				updateCurrentChannel();
 			}
 			return false;
 		}
@@ -104,28 +99,51 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	public void onDestroy() {
 		if(ctxt != null) ctxt.unregisterReceiver(broadcast);
 	}
+	
+	public RssChannel getChannel(int id)
+	{
+		SharedPreferences 		prefs	= ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
+		LinkedList<RssChannel>	list	= new LinkedList<RssChannel>();
+		ChannelList				clist	= ChannelList.fromJSONString(prefs.getString("rssfeed",""));
+		RssChannel				channel = null;
+
+		for(LocalChannel lc : clist) {
+			RssChannel dbchannel = db.getChannel(lc.url,list.size());
+			if(dbchannel != null) {
+	    		list.add(dbchannel);
+			}
+		}
+		if(list.size() > 0) {
+			channel = (id == -1) ? list.get(list.size()-1) : (id >= list.size()) ? list.get(0) : list.get(id);
+			if(channel.getPosition()+1 == list.size()) channel.setLastChannel(true);
+		}
+		return channel;
+	}
+	
+	
 	public void onDataSetChanged() {
-		SharedPreferences prefs = ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
+		SharedPreferences 		prefs	= ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
+		RssChannel				channel = getChannel(idCurrentChannel);
+
 		int page = prefs.getInt("changePage",0); 
-		Log.d("onDataSetChanged","Items on list:"+channelList.size()+" page:"+page+" Current Channel:" + ((currentChannel != null) ? currentChannel.toString() : "null"));
+		Log.d("onDataSetChanged","Current Channel:" + ((channel != null) ? channel.toString() : "null"));
 		if(page != 0) {
+			if(channel != null) {
+				if(page < 0) {
+					channel=(channel.getPosition() == 0) ? getChannel(-1) : getChannel(channel.getPosition()-1); 
+				} else {
+					channel=(channel.isLastChannel()) ? getChannel(0) : getChannel(channel.getPosition()+1); 
+				}
+			}
+			idCurrentChannel = (channel == null) ? 0 : channel.getPosition();
+			Log.d("onDataSetChanged",(channel != null) ? "Channel set to:"+channel.toString() : "No channel available");
 			SharedPreferences.Editor prefset = prefs.edit();
 			prefset.putInt("changePage",0);
+			prefset.putInt("currentPageId",idCurrentChannel);
 			prefset.commit();
-			switch(page) {
-			case -1:
-				currentChannel = (currentChannel != null && channelList.size() > 0) ? (currentChannel.getPosition()-1 < 0 || currentChannel.getPosition()-1 >= channelList.size()) ? channelList.getLast() : channelList.get(currentChannel.getPosition() - 1) : null;
-				break;
-			default:
-				currentChannel = (currentChannel != null && channelList.size() > 0) ? (currentChannel.getPosition()+1 >= channelList.size()) ? channelList.getFirst() : channelList.get(currentChannel.getPosition()+1) : null;
-				break;
-			}
-			Log.d("onDataSetChanged",(currentChannel != null) ? "Channel set to:"+currentChannel.toString() : "No channel available");
 		}
 		updateCurrentChannel();
-		if(page == 0) {
-			updateList();
-		} else {
+		if(page != 0) {
 			RemoteViews views=new RemoteViews(ctxt.getPackageName(),R.layout.main);
 			views.setScrollPosition(R.id.newsList,0);
 			AppWidgetManager.getInstance(ctxt).notifyAppWidgetViewDataChanged(appWidgetId,R.id.newsList);
@@ -137,7 +155,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		RssChannel channel;
 		RemoteViews views=new RemoteViews(ctxt.getPackageName(),R.layout.main);
 
-		channel = currentChannel;
+		channel = getChannel(idCurrentChannel);
 		if(channel != null) {
 			views.setTextViewText(R.id.channel,channel.getTitle());
 			views.setTextViewText(R.id.update,ctxt.getString(R.string.lastUpdate) + ": " + channel.getUpdate());
@@ -248,25 +266,9 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		t.start();
 	}
 	
-	/* update channel info */
-	private void updateList() {
-		LinkedList<RssChannel>		list		= new LinkedList<RssChannel>();
-		final	SharedPreferences	prefs		= ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
-		ChannelList					clist		= ChannelList.fromJSONString(prefs.getString("rssfeed",""));
-
-		Log.d("updateList","Creating channel list");
-		for(LocalChannel lc : clist) {
-			RssChannel dbchannel = db.getChannel(lc.url,list.size());
-			if(dbchannel != null) {
-	    		list.add(dbchannel);
-			}
-		}
-		channelList=list;
-		currentChannel=(list.isEmpty()) ? null : list.getFirst();
-		updateCurrentChannel();
-	}
-	
 	public ViewProvider(Context ctxt, Intent intent) {
+		SharedPreferences 		prefs	= ctxt.getSharedPreferences(MyWidget.PREFS_DB, 0);
+
 		this.ctxt=ctxt;
 	    appWidgetId=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
 	    className=intent.getStringExtra("className");
@@ -274,13 +276,14 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		handler = new Handler(callback);
 		ctxt.registerReceiver(broadcast,new IntentFilter(MyWidget.UPDATE_RSS));
 		ctxt.registerReceiver(broadcast,new IntentFilter(MyWidget.START_WIDGET));
+		idCurrentChannel = prefs.getInt("currentPageId",idCurrentChannel);
 		bgUpdate();
 	}
 	
 	public int getCount() {
 		RssChannel channel;
 		
-		channel = currentChannel;
+		channel = getChannel(idCurrentChannel);
 		Log.d("teste",(channel == null) ? "channel is null" : channel.getTitle()+":"+channel.getList().size());
 		return((channel != null) ? channel.getList().size() : 0);
 	}
@@ -296,7 +299,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		RssChannel channel;
 		String text = "", link = "";
 		
-		channel = currentChannel;
+		channel = getChannel(idCurrentChannel);
 		if(channel != null && position < channel.getList().size()) {
 			text = channel.getList().get(position).getTitle();
 			link = channel.getList().get(position).getLink();
@@ -366,6 +369,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		private String				update="";
 		private	int					position=0;
 		private	String				channelTitle="";
+		private	boolean				lastchannel;
 		
 		public String toString() {
 			return this.position + ":" + this.title + ":" + this.link + ":" + this.update + ":" + this.channelTitle;
@@ -424,6 +428,12 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		}
 		public String getChannelTitle() {
 			return this.channelTitle;
+		}
+		public void setLastChannel(boolean b) {
+			this.lastchannel = b;
+		}
+		public boolean isLastChannel() {
+			return this.lastchannel;
 		}
 	}
 

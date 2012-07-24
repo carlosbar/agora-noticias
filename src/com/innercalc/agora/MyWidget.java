@@ -30,7 +30,17 @@ public abstract class MyWidget extends AppWidgetProvider {
 
 		Log.d(context.getPackageName(),intent.getAction());
 		
-		if(MyWidget.CHANGE_PAGE.equals(intent.getAction())) {
+		if(MyWidget.UPDATE_RSS.equals(intent.getAction())) {
+			SharedPreferences prefs = context.getSharedPreferences(MyWidget.PREFS_DB, 0);
+			SharedPreferences.Editor prefset = prefs.edit();
+			prefset.putBoolean("updateRSS",true);
+			prefset.commit();
+			RemoteViews widget = new RemoteViews(context.getPackageName (), R.layout.main);
+			ComponentName cn = new ComponentName(context, this.getClass());
+			int [] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(cn);
+			AppWidgetManager.getInstance(context).notifyAppWidgetViewDataChanged(ids,R.id.newsList);
+			AppWidgetManager.getInstance(context).updateAppWidget(cn,widget);
+		} else if(MyWidget.CHANGE_PAGE.equals(intent.getAction())) {
 			if(intent.getIntExtra("changePage",0) != 0) {
 				SharedPreferences prefs = context.getSharedPreferences(MyWidget.PREFS_DB, 0);
 				SharedPreferences.Editor prefset = prefs.edit();
@@ -76,6 +86,12 @@ public abstract class MyWidget extends AppWidgetProvider {
 			ComponentName cn = new ComponentName(context, this.getClass());
 			int [] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(cn);
 			for(int i=0; i < ids.length; i++) {
+				/* update channels */
+				Intent upd = new Intent(context, this.getClass());
+				upd.setAction(MyWidget.UPDATE_RSS);
+				upd.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, ids[i]);
+				PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, upd, PendingIntent.FLAG_UPDATE_CURRENT);
+				widget.setOnClickPendingIntent(R.id.updateChannels, pendingIntent);
 				/* open link */
 				Intent click = new Intent(context,this.getClass());
 				click.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, ids[i]);

@@ -2,7 +2,6 @@ package com.innercalc.agora;
 
 import android.content.Intent;
 import android.widget.RemoteViewsService;
-import android.widget.Toast;
 
 public class ViewService extends RemoteViewsService {
 
@@ -11,5 +10,4 @@ public class ViewService extends RemoteViewsService {
 		// TODO Auto-generated method stub
 	    return(new ViewProvider(this.getApplicationContext(),intent));
 	}
-
 }

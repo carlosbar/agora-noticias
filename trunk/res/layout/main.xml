@@ -85,32 +85,30 @@
         android:gravity="center"
         android:weightSum="10" >
 
-        <LinearLayout
+        <ImageButton
+            android:id="@+id/updateChannels"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="8.8"
-            android:gravity="center" >
+            android:layout_weight="1"
+            android:background="@null"
+            android:src="@drawable/upd" />
 
-            <TextView
-                android:id="@+id/update"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textAppearance="?android:attr/textAppearanceSmall" />
-        </LinearLayout>
-
-        <LinearLayout
+        <TextView
+            android:id="@+id/update"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1.2" >
+            android:layout_weight="8"
+            android:gravity="center"
+            android:text=""
+            android:textAppearance="?android:attr/textAppearanceSmall" />
 
-            <ImageButton
-                android:id="@+id/config"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@null"
-                android:src="@drawable/btncfg" />
-        </LinearLayout>
+        <ImageButton
+            android:id="@+id/config"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@null"
+            android:src="@drawable/btncfg" />
     </LinearLayout>
 
 </LinearLayout>

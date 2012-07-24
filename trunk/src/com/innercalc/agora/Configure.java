@@ -10,6 +10,7 @@ import com.innercalc.agora.R;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -212,9 +213,6 @@ public class Configure extends Activity {
 //		PendingIntent pendingIntent = PendingIntent.getBroadcast(Configure.this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 //		views.setOnClickPendingIntent(R.id.imageButton1, pendingIntent);
 
-		/* update view */
-		appWidgetManager.updateAppWidget(mAppWidgetId, views);
-
 		/* set name of rss location */
 		SharedPreferences prefs = getSharedPreferences(MyWidget.PREFS_DB, 0);
 		SharedPreferences.Editor prefset = prefs.edit();
@@ -232,7 +230,10 @@ public class Configure extends Activity {
 		Intent resultValue = new Intent();
 		resultValue.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, mAppWidgetId);
 		setResult(RESULT_OK, resultValue);
-		
+
+		/* update view */
+		appWidgetManager.updateAppWidget(mAppWidgetId, views);
+
 		/* finish the activity */
 		finish();
     }

@@ -41,17 +41,15 @@ public abstract class MyWidget extends AppWidgetProvider {
 			AppWidgetManager.getInstance(context).notifyAppWidgetViewDataChanged(ids,R.id.newsList);
 			AppWidgetManager.getInstance(context).updateAppWidget(cn,widget);
 		} else if(MyWidget.CHANGE_PAGE.equals(intent.getAction())) {
-			if(intent.getIntExtra("changePage",0) != 0) {
-				SharedPreferences prefs = context.getSharedPreferences(MyWidget.PREFS_DB, 0);
-				SharedPreferences.Editor prefset = prefs.edit();
-				prefset.putInt("changePage",intent.getIntExtra("changePage",0));
-				prefset.commit();
-				RemoteViews widget = new RemoteViews(context.getPackageName (), R.layout.main);
-				ComponentName cn = new ComponentName(context, this.getClass());
-				int [] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(cn);
-				AppWidgetManager.getInstance(context).notifyAppWidgetViewDataChanged(ids,R.id.newsList);
-				AppWidgetManager.getInstance(context).updateAppWidget(cn,widget);
-			}
+			SharedPreferences prefs = context.getSharedPreferences(MyWidget.PREFS_DB, 0);
+			SharedPreferences.Editor prefset = prefs.edit();
+			prefset.putInt("changePage",intent.getIntExtra("changePage",0));
+			prefset.commit();
+			RemoteViews widget = new RemoteViews(context.getPackageName (), R.layout.main);
+			ComponentName cn = new ComponentName(context, this.getClass());
+			int [] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(cn);
+			AppWidgetManager.getInstance(context).notifyAppWidgetViewDataChanged(ids,R.id.newsList);
+			AppWidgetManager.getInstance(context).updateAppWidget(cn,widget);
 		} else if(MyWidget.OPEN_LINK.equals(intent.getAction())) {
 			Thread t = new Thread(new Runnable() {
 				public void run() {

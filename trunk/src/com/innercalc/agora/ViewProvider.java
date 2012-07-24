@@ -84,8 +84,12 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	Callback callback = new Callback() {
 		public boolean handleMessage(Message msg) {
 			if(msg.what == 0) {
+				Log.d("callback","received update message");
 				parseDB();
-				updateCurrentChannel();
+				/* send a broadcast so the widget will request a refresh in the list */
+				Intent intent = new Intent(MyWidget.CHANGE_PAGE);
+				intent.putExtra("changePage",0);
+				ctxt.sendBroadcast(intent);
 			}
 			return false;
 		}
@@ -208,9 +212,8 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			Log.d("Concrete Class Name",updtClass.getCanonicalName());
 			ComponentName cn = new ComponentName(ctxt,updtClass);
 			AppWidgetManager.getInstance(ctxt).updateAppWidget(cn,views);
-			views.setScrollPosition(R.id.newsList,0);
-			AppWidgetManager.getInstance(ctxt).notifyAppWidgetViewDataChanged(appWidgetId,R.id.newsList);
 		} catch (Exception e) {
+			e.printStackTrace();
 			AppWidgetManager.getInstance(ctxt).updateAppWidget(appWidgetId,views);
 		}
 	}
@@ -315,7 +318,6 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			ct.setTimeInMillis(System.currentTimeMillis());
 			if(totalUpd > 0) {
 				ct.add(Calendar.MINUTE,prefs.getInt("updateTimeout",30) > FIVE_MINUTES ? prefs.getInt("updateTimeout",30) : FIVE_MINUTES);
-				handler.sendEmptyMessage(0);
 			} else {
 				ct.add(Calendar.MINUTE,FIVE_MINUTES);
 			}
@@ -330,6 +332,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 				updateThread = null;
 			}
 			Log.d("updateFunction","update done");
+			handler.sendEmptyMessage(0);
 		}
 	});
 	

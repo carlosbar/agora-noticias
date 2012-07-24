@@ -86,9 +86,6 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			if(msg.what == 0) {
 				parseDB();
 				updateCurrentChannel();
-				RemoteViews views=new RemoteViews(ctxt.getPackageName(),R.layout.main);
-				views.setScrollPosition(R.id.newsList,0);
-				AppWidgetManager.getInstance(ctxt).notifyAppWidgetViewDataChanged(appWidgetId,R.id.newsList);
 			}
 			return false;
 		}
@@ -211,6 +208,8 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			Log.d("Concrete Class Name",updtClass.getCanonicalName());
 			ComponentName cn = new ComponentName(ctxt,updtClass);
 			AppWidgetManager.getInstance(ctxt).updateAppWidget(cn,views);
+			views.setScrollPosition(R.id.newsList,0);
+			AppWidgetManager.getInstance(ctxt).notifyAppWidgetViewDataChanged(appWidgetId,R.id.newsList);
 		} catch (Exception e) {
 			AppWidgetManager.getInstance(ctxt).updateAppWidget(appWidgetId,views);
 		}

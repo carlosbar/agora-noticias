@@ -18,6 +18,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.database.DataSetObserver;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.ActionMode;
@@ -70,12 +71,26 @@ public class Configure extends Activity {
 		{"Folha.com - Dinheiro","http://feeds.folha.uol.com.br/folha/dinheiro/rss091.xml"},
 		{"Folha.com - Brasil","http://feeds.folha.uol.com.br/folha/brasil/rss091.xml"},
 		{"Folha.com - Cotidiano","http://feeds.folha.uol.com.br/cotidiano/rss091.xml"},
-		{"Folha.com - Ciência","http://feeds.folha.uol.com.br/ciencia/rss091.xml"}};
-
+		{"Folha.com - Ciência","http://feeds.folha.uol.com.br/ciencia/rss091.xml"},
+		{"G1 - São Paulo","http://g1.globo.com/dynamo/sao-paulo/rss2.xml"},
+		{"G1 - Ciência e Saúde","http://g1.globo.com/dynamo/ciencia-e-saude/rss2.xml"},
+		{"G1 - Mundo","http://g1.globo.com/dynamo/mundo/rss2.xml"},
+		{"G1 - Planeta Bizarro","http://g1.globo.com/dynamo/planeta-bizarro/rss2.xml"},
+		{"G1 - Pop Arte","http://g1.globo.com/dynamo/pop-arte/rss2.xml"},
+		{"G1 - Rio de Janeiro","http://g1.globo.com/dynamo/rio-de-janeiro/rss2.xml"},
+		{"G1 - Tecnologia","http://g1.globo.com/dynamo/tecnologia/rss2.xml"},
+		{"G1 - Amazônia","http://www.globoamazonia.com/Rss2/0,,AS0-16052,00.xml"},
+		{"G1 - Carros","http://g1.globo.com/dynamo/carros/rss2.xml"},
+		{"G1 - Economia","http://g1.globo.com/dynamo/economia/rss2.xml"},
+		{"G1 - Home","http://g1.globo.com/dynamo/rss2.xml"},				
+		{"G1 - Política","http://g1.globo.com/dynamo/politica/rss2.xml"},
+		{"G1 - Vestibular e Educação","http://g1.globo.com/dynamo/vestibular-e-educacao/rss2.xml"}};
+								
 	private ChannelList channelList = Channel.addChannel(staticChannel);
 	private ChannelList userFeeds;
 	private int interval = ViewProvider.THIRTY_MINUTES;
 	private int maxFeeds = ViewProvider.MAXFEEDS_FIFTEEN;
+	private int	textColor;
 
 	public String join(String [] arr,String c)
 	{
@@ -110,6 +125,7 @@ public class Configure extends Activity {
 		userFeeds = ChannelList.fromJSONString(prefs.getString("rssfeed",channelList.toJSONString()));
 		interval = prefs.getInt("updateTimeout",interval);
 		maxFeeds = prefs.getInt("maxFeeds",maxFeeds);
+		textColor = prefs.getInt("textColor",0);
 		
 		/* get widget id */
 		Bundle extras = intent.getExtras();
@@ -142,6 +158,32 @@ public class Configure extends Activity {
 				Toast.makeText(Configure.this,interval + " " + getString(R.string.minutes),Toast.LENGTH_SHORT).show();
 			}
 		});
+		
+		((SeekBar) findViewById(R.id.textColor)).setProgress(textColor);
+		((SeekBar) findViewById(R.id.textColor)).setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
+			public void onProgressChanged(SeekBar arg0, int arg1, boolean arg2) {
+				textColor = arg1;
+			}
+			public void onStartTrackingTouch(SeekBar seekBar) {
+			}
+			public void onStopTrackingTouch(SeekBar seekBar) {
+				switch(textColor) {
+				case 0:
+					Toast.makeText(Configure.this,getString(R.string.lightGray),Toast.LENGTH_SHORT).show();
+					break;
+				case 1:
+					Toast.makeText(Configure.this,getString(R.string.darkGray),Toast.LENGTH_SHORT).show();
+					break;
+				case 2:
+					Toast.makeText(Configure.this,getString(R.string.white),Toast.LENGTH_SHORT).show();
+					break;
+				case 3:
+					Toast.makeText(Configure.this,getString(R.string.black),Toast.LENGTH_SHORT).show();
+					break;
+				}
+			}
+		});
+		
 		
 		((Button) findViewById(R.id.rssFeeds)).setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
@@ -203,8 +245,8 @@ public class Configure extends Activity {
     	//super.onBackPressed();
     	
     	/* get remote view from widget screen */
-		RemoteViews views = new RemoteViews(Configure.this.getPackageName(),R.layout.main);
-		AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(Configure.this);
+		//RemoteViews views = new RemoteViews(Configure.this.getPackageName(),R.layout.main);
+		//AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(Configure.this);
 
 		/* create button procedure */
 //		Intent intent = new Intent(rsswidget.CHANGE_TEXT);
@@ -219,6 +261,7 @@ public class Configure extends Activity {
 		prefset.putString("rssfeed",userFeeds.toJSONString());
 		prefset.putInt("updateTimeout",interval);
 		prefset.putInt("maxFeeds",maxFeeds);
+		prefset.putInt("textColor",textColor);
 		prefset.commit();
 		
 		/* start widget */
@@ -232,7 +275,7 @@ public class Configure extends Activity {
 		setResult(RESULT_OK, resultValue);
 
 		/* update view */
-		appWidgetManager.updateAppWidget(mAppWidgetId, views);
+		//appWidgetManager.updateAppWidget(mAppWidgetId, views);
 
 		/* finish the activity */
 		finish();

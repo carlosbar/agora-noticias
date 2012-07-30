@@ -27,15 +27,14 @@ public abstract class MyWidget extends AppWidgetProvider {
 	@Override
 	public void onReceive(final Context context, final Intent intent) {
 		super.onReceive(context, intent);
+		final int	mainLayout = (this.getClass().getName().endsWith("Transp")) ?  R.layout.main_transp : R.layout.main;
 
-		Log.d(context.getPackageName(),intent.getAction());
-		
 		if(MyWidget.UPDATE_RSS.equals(intent.getAction())) {
 			SharedPreferences prefs = context.getSharedPreferences(MyWidget.PREFS_DB, 0);
 			SharedPreferences.Editor prefset = prefs.edit();
 			prefset.putBoolean("updateRSS",true);
 			prefset.commit();
-			RemoteViews widget = new RemoteViews(context.getPackageName (), R.layout.main);
+			RemoteViews widget = new RemoteViews(context.getPackageName (), mainLayout);
 			ComponentName cn = new ComponentName(context, this.getClass());
 			int [] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(cn);
 			AppWidgetManager.getInstance(context).notifyAppWidgetViewDataChanged(ids,R.id.newsList);
@@ -45,7 +44,7 @@ public abstract class MyWidget extends AppWidgetProvider {
 			SharedPreferences.Editor prefset = prefs.edit();
 			prefset.putInt("changePage",intent.getIntExtra("changePage",0));
 			prefset.commit();
-			RemoteViews widget = new RemoteViews(context.getPackageName (), R.layout.main);
+			RemoteViews widget = new RemoteViews(context.getPackageName (), mainLayout);
 			ComponentName cn = new ComponentName(context, this.getClass());
 			int [] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(cn);
 			AppWidgetManager.getInstance(context).notifyAppWidgetViewDataChanged(ids,R.id.newsList);
@@ -60,7 +59,7 @@ public abstract class MyWidget extends AppWidgetProvider {
 							SharedPreferences.Editor prefset = prefs.edit();
 							prefset.putBoolean("fullUpdate",true);
 							prefset.commit();
-							RemoteViews widget = new RemoteViews(context.getPackageName (), R.layout.main);
+							RemoteViews widget = new RemoteViews(context.getPackageName (), mainLayout);
 							ComponentName cn = new ComponentName(context, this.getClass());
 							int [] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(cn);
 							AppWidgetManager.getInstance(context).notifyAppWidgetViewDataChanged(ids,R.id.newsList);
@@ -78,9 +77,10 @@ public abstract class MyWidget extends AppWidgetProvider {
 			/* intent to start service that will control the listview */
 			Intent svcIntent=new Intent(context,ViewService.class);
 			svcIntent.putExtra("className",this.getClass().getName());
+			svcIntent.putExtra("layoutId",mainLayout);
 			svcIntent.setData(Uri.parse(svcIntent.toUri(Intent.URI_INTENT_SCHEME)));
 			/* update listview */
-			RemoteViews widget = new RemoteViews(context.getPackageName (), R.layout.main);
+			RemoteViews widget = new RemoteViews(context.getPackageName (), mainLayout);
 			ComponentName cn = new ComponentName(context, this.getClass());
 			int [] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(cn);
 			for(int i=0; i < ids.length; i++) {
@@ -124,6 +124,7 @@ public abstract class MyWidget extends AppWidgetProvider {
 	@Override
 	public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
 		// TODO Auto-generated method stub
+		int	mainLayout = (this.getClass().getName().endsWith("Transp")) ?  R.layout.main_transp : R.layout.main;
 
 		SharedPreferences prefs = context.getSharedPreferences(MyWidget.PREFS_DB, 0);
 		SharedPreferences.Editor prefset = prefs.edit();
@@ -131,7 +132,7 @@ public abstract class MyWidget extends AppWidgetProvider {
 		prefset.commit();
 		
 		for(int i=0; i<appWidgetIds.length; i++) {
-			RemoteViews widget=new RemoteViews(context.getPackageName(),R.layout.main);
+			RemoteViews widget=new RemoteViews(context.getPackageName(),mainLayout);
 			appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds[i],R.id.newsList);
 			appWidgetManager.updateAppWidget(appWidgetIds[i], widget);
 		}

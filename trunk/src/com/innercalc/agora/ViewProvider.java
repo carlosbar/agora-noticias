@@ -45,6 +45,7 @@ import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Handler.Callback;
@@ -52,6 +53,7 @@ import android.os.Message;
 import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
+import android.widget.Toast;
 
 public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 
@@ -70,6 +72,9 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	
 	private	final		Semaphore					semaphore		= new Semaphore(1, true);
 	private				String						className		= new String();
+	private				int							layoutId		= R.layout.main;
+	private				int							textColor;
+	private				int							updateTimeout;
 	private				LinkedList<RssChannel>		channelList;
 	private				DatabaseHandler				db;
 	private				Handler						handler;
@@ -95,6 +100,31 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		}
 	};
 
+	/**
+	 * get text color according to color code
+	 * @param code color code defined in Configure.java
+	 * @return the system color code
+	 */
+	public int getTextColor(int code) {
+		int color = Color.LTGRAY;
+
+		switch(code) {
+		case 0:
+			color = Color.LTGRAY;
+			break;
+		case 1:
+			color = Color.DKGRAY;
+			break;
+		case 2:
+			color = Color.WHITE;
+			break;
+		case 3:
+			color = Color.BLACK;
+			break;
+		}
+		return color;
+	}
+	
 	/**
 	 * retrieve database information to generate channel list
 	 */
@@ -162,6 +192,11 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			prefset.commit();
 			bgUpdate();
 			return;
+		} else if(prefs.getInt("updateTimeout",30) != updateTimeout) {
+			if(prefs.getInt("updateTimeout",30) < updateTimeout) {
+				bgUpdate();
+			}
+			updateTimeout = prefs.getInt("updateTimeout",30);
 		}
 		/* are we changing pages? */
 		int page = prefs.getInt("changePage",0); 
@@ -180,10 +215,11 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			prefset.putInt("currentPageId",idCurrentChannel);
 			prefset.commit();
 		}
+		textColor = prefs.getInt("textColor",textColor);
 		/* update current channel */
 		updateCurrentChannel();
 		if(page != 0) {
-			RemoteViews views=new RemoteViews(ctxt.getPackageName(),R.layout.main);
+			RemoteViews views=new RemoteViews(ctxt.getPackageName(),layoutId);
 			views.setScrollPosition(R.id.newsList,0);
 			AppWidgetManager.getInstance(ctxt).notifyAppWidgetViewDataChanged(appWidgetId,R.id.newsList);
 		}
@@ -194,7 +230,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	 */
 	public void updateCurrentChannel() {
 		RssChannel channel;
-		RemoteViews views=new RemoteViews(ctxt.getPackageName(),R.layout.main);
+		RemoteViews views=new RemoteViews(ctxt.getPackageName(),layoutId);
 
 		channel = getChannel(idCurrentChannel);
 		if(channel != null) {
@@ -207,6 +243,8 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			}
 			views.setTextViewText(R.id.update,ctxt.getString(R.string.updating));
 		}
+		views.setTextColor(R.id.channel,getTextColor(textColor));
+		views.setTextColor(R.id.update,getTextColor(textColor));
 		try {
 			Class<?> updtClass = Class.forName(className);
 			Log.d("Concrete Class Name",updtClass.getCanonicalName());
@@ -342,6 +380,9 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 		this.ctxt=ctxt;
 	    appWidgetId=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
 	    className=intent.getStringExtra("className");
+	    layoutId = intent.getIntExtra("layoutId",layoutId);
+	    updateTimeout = prefs.getInt("updateTimeout",30);
+		textColor = prefs.getInt("textColor",getTextColor(textColor));
 		db = new DatabaseHandler(ctxt);
 		handler = new Handler(callback);
 		idCurrentChannel = prefs.getInt("currentPageId",idCurrentChannel);
@@ -360,6 +401,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	public RemoteViews getLoadingView() {
 		RemoteViews row=new RemoteViews(ctxt.getPackageName(),R.layout.row);
 		row.setTextViewText(android.R.id.text1,"");
+		row.setTextColor(android.R.id.text1, getTextColor(textColor));
 		return(row);
 	}
 	
@@ -374,6 +416,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 			link = channel.getList().get(position).getLink();
 		}
 		row.setTextViewText(android.R.id.text1,text);
+		row.setTextColor(android.R.id.text1, getTextColor(textColor));
 		Intent i=new Intent();
 		Bundle extras=new Bundle();
 		extras.putString("itemLink", link);

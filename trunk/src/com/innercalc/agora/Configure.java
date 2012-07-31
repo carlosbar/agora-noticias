@@ -1,8 +1,6 @@
 package com.innercalc.agora;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.Arrays;
 
 import com.innercalc.agora.Channel.ChannelList;
 import com.innercalc.agora.Channel.LocalChannel;
@@ -10,36 +8,26 @@ import com.innercalc.agora.R;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager.NameNotFoundException;
-import android.database.DataSetObserver;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.ActionMode;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.widget.AbsListView.MultiChoiceModeListener;
-import android.widget.Adapter;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
-import android.widget.ListAdapter;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.RemoteViews;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
@@ -87,7 +75,7 @@ public class Configure extends Activity {
 		{"G1 - Vestibular e Educação","http://g1.globo.com/dynamo/vestibular-e-educacao/rss2.xml"}};
 								
 	private ChannelList channelList = Channel.addChannel(staticChannel);
-	private ChannelList userFeeds;
+	private ChannelList userFeeds,userChannels;
 	private int interval = ViewProvider.THIRTY_MINUTES;
 	private int maxFeeds = ViewProvider.MAXFEEDS_FIFTEEN;
 	private int	textColor;
@@ -123,9 +111,15 @@ public class Configure extends Activity {
 
 		SharedPreferences prefs = getSharedPreferences(MyWidget.PREFS_DB, 0);
 		userFeeds = ChannelList.fromJSONString(prefs.getString("rssfeed",channelList.toJSONString()));
+		userChannels =  ChannelList.fromJSONString(prefs.getString("userChannels",channelList.toJSONString()));
 		interval = prefs.getInt("updateTimeout",interval);
 		maxFeeds = prefs.getInt("maxFeeds",maxFeeds);
 		textColor = prefs.getInt("textColor",0);
+		
+		/* incorporate user channels */
+		for(LocalChannel l : userChannels) {
+			channelList.add(l);
+		}
 		
 		/* get widget id */
 		Bundle extras = intent.getExtras();
@@ -191,20 +185,19 @@ public class Configure extends Activity {
 				final LayoutInflater layoutInflater = LayoutInflater.from(Configure.this);
 				final View channel = layoutInflater.inflate(R.layout.channel, null);
 				dlg.setView(channel);
-				ChannelItem [] itemList = new ChannelItem[channelList.size()];
 
-				/* verify which feeds are turned on */
-				for(int c=0;c < channelList.size();c++) {
-					boolean checked = false;
-					for(int i=0;i < userFeeds.size();i++) {
-						if(userFeeds.get(i).url.equals(channelList.get(c).url)) {
-							checked = true;
-							break;
+				/**
+				 * set list adapter
+				 */
+				for(int x=0;x < channelList.size();x++) {
+					LocalChannel cl = channelList.get(x);
+					for(int y=0;y < userFeeds.size();y++) {
+						if(userFeeds.get(y).url.equals(cl.url)) {
+							cl.checked = true;
 						}
 					}
-	    			itemList[c] = new ChannelItem(channelList.get(c).url,channelList.get(c).name,checked);
 				}
-				final ChannelAdapter adapter = new ChannelAdapter(Configure.this,itemList);
+				final ChannelAdapter adapter = new ChannelAdapter(Configure.this,channelList);
 				((ListView) channel.findViewById(R.id.channelList)).setAdapter(adapter);
 
 				/**
@@ -221,16 +214,66 @@ public class Configure extends Activity {
 				});
 				
 				/**
+				 * new channel button
+				 */
+				((Button) channel.findViewById(R.id.newChannel)).setOnClickListener(new OnClickListener() {
+					
+					public void onClick(View arg0) {
+						final AlertDialog.Builder newdlg = new AlertDialog.Builder(Configure.this);
+						final LayoutInflater layoutInflater = LayoutInflater.from(Configure.this);
+						final View newchannel = layoutInflater.inflate(R.layout.newchannel, null);
+						newdlg.setView(newchannel);
+
+						/**
+						 * ok button pressed
+						 */
+						newdlg.setPositiveButton(getString(R.string.add),new DialogInterface.OnClickListener() {
+							
+							public void onClick(DialogInterface dialog, int which) {
+								final String channelName = ((EditText) newchannel.findViewById(R.id.channelName)).getText().toString();
+								final String url =  ((EditText) newchannel.findViewById(R.id.url)).getText().toString();
+								
+								if(!channelName.isEmpty() && !url.isEmpty()) {
+									adapter.add(new LocalChannel(channelName,url,false));
+								} else {
+									Toast.makeText(Configure.this,getString(R.string.errorAddingChannel),Toast.LENGTH_LONG).show();
+								}
+							}
+						});
+
+						/**
+						 * back button pressed
+						 */
+						newdlg.setOnCancelListener(new DialogInterface.OnCancelListener() {
+							public void onCancel(DialogInterface dialog) {
+							}
+						});
+						
+						newdlg.setTitle(R.string.newChannel);
+						newdlg.setIcon(R.drawable.ic_launcher);
+						newdlg.show();
+					}
+				});
+				
+				/**
 				 * back button has been pressed
 				 */
 				dlg.setOnCancelListener(new DialogInterface.OnCancelListener() {
 					public void onCancel(DialogInterface dialog) {
 						userFeeds.clear();
+						userChannels.clear();
 						for(int x=0;x < adapter.getCount();x++) {
+							/* add checked channels */
 							if(adapter.getItem(x).checked) {
+								Log.d("Channel List","Channel: " + adapter.getItem(x).name);
 								userFeeds.add(channelList.get(x));
 							}
+							/* add user channels */
+							if(!adapter.getItem(x).staticChannel) {
+								userChannels.add(adapter.getItem(x));
+							}
 						}
+						channelList = adapter.itemList;
 					}
 				});
 				dlg.setTitle(R.string.rssFeeds);
@@ -259,6 +302,7 @@ public class Configure extends Activity {
 		SharedPreferences prefs = getSharedPreferences(MyWidget.PREFS_DB, 0);
 		SharedPreferences.Editor prefset = prefs.edit();
 		prefset.putString("rssfeed",userFeeds.toJSONString());
+		prefset.putString("userChannels",userChannels.toJSONString());
 		prefset.putInt("updateTimeout",interval);
 		prefset.putInt("maxFeeds",maxFeeds);
 		prefset.putInt("textColor",textColor);
@@ -281,39 +325,46 @@ public class Configure extends Activity {
 		finish();
     }
     
-    public class ChannelItem {
-    	public	String		name;
-    	public	String		url;
-    	public	boolean		checked;
-    	public ChannelItem(String u,String n,boolean c) {
-    		url = u;
-    		name = n;
-    		checked = c;
-    	}
-    }
-    
-    public class ChannelAdapter extends ArrayAdapter<ChannelItem> {
+    public class ChannelAdapter extends ArrayAdapter<LocalChannel> {
     	private Context ctxt;
-    	private ChannelItem [] itemList;
+    	private ChannelList itemList;
 
-    	public ChannelAdapter(Context context, ChannelItem [] itemList) {
+    	public ChannelAdapter(Context context, ChannelList itemList) {
     		super(context,android.R.layout.simple_list_item_1,itemList);
     		ctxt = context;
     		this.itemList = itemList;
     	}
     	
     	public void setChecked(int position,boolean checked) {
-    		itemList[position].checked = checked;
+    		itemList.get(position).checked = checked;
     		super.notifyDataSetChanged();
     	}
 
     	public boolean getChecked(int position) {
-    		return itemList[position].checked;
+    		return itemList.get(position).checked;
+    	}
+
+    	@Override
+    	public LocalChannel getItem(int position) {
+    		return itemList.get(position);
+    	}
+
+    	@Override
+    	public void remove(LocalChannel object) {
+    		itemList.remove(object);
+    		super.notifyDataSetChanged();
     	}
     	
     	@Override
+    	public void add(LocalChannel object) {
+    		object.checked = true;
+    		itemList.add(object);
+    		super.notifyDataSetChanged();
+    	}
+
+    	@Override
     	public int getCount() {
-    		return itemList.length;
+    		return itemList.size();
     	}
 
     	@Override
@@ -322,24 +373,35 @@ public class Configure extends Activity {
 			
 			LayoutInflater inflater = (LayoutInflater) ctxt.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 			checkView =  inflater.inflate(R.layout.checkrow,parent,false);
-			ChannelItem item = itemList[position];	
+			LocalChannel item = itemList.get(position);
+			checkView.setTag(item);
 			Log.d("Create View","postion " + position + " Checked: " + item.checked + " name: " + item.name);
 			CheckBox cb=(CheckBox) checkView.findViewById(R.id.checked);
 			if(cb != null) {
-				cb.setId(position);
+				cb.setTag(item);
 				cb.setChecked(item.checked);
 				cb.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 					public void onCheckedChanged(CompoundButton button, boolean checked) {
-						CheckBox cb = (CheckBox) button;
-						ChannelItem item = itemList[cb.getId()];
+						LocalChannel item = (LocalChannel) button.getTag();
 						item.checked = checked;
-						Log.d("Create View","postion " + cb.getId() + " Checked: " + item.checked + " name: " + item.name);
 					}
 				});
 			}
 			TextView tv = (TextView) checkView.findViewById(R.id.title);
 			if(tv != null) {
 				tv.setText(item.name);
+			}
+			ImageView im = (ImageView) checkView.findViewById(R.id.deleteChannel);
+			if(im != null && !item.staticChannel) {
+				im.setTag(item);
+				im.setBackgroundResource(R.drawable.delpress);
+				im.setOnClickListener(new OnClickListener() {
+					
+					public void onClick(View v) {
+						LocalChannel item = (LocalChannel) v.getTag();
+						ChannelAdapter.this.remove(item);
+					}
+				});
 			}
 			return checkView;
 		}

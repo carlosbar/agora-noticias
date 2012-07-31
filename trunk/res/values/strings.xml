@@ -3,7 +3,7 @@
 
     <string name="hello">Hello World, RssviewerActivity!</string>
     <string name="app_name">Agora Notícias</string>
-    <string name="loading">Carregando...</string>
+    <string name="loading">Carregando&#8230;</string>
     <string name="invalid_rss_feed">Endereço do servidor inválido</string>
     <string name="lastUpdate">Última atualização</string>
     <string name="updating">Atualizando</string>
@@ -22,11 +22,17 @@
     <string name="widget_name_xl_transp">Agora (5x4) Transparent</string>
     <string name="invertSelection">Invert Selection</string>
     <string name="all">&#8230;</string>
-    <string name="channelName">Canais</string>
+    <string name="channels">Canais</string>
     <string name="textColor">Cor do Texto</string>
     <string name="lightGray">Cinza Claro</string>
     <string name="darkGray">Cinza Escuro</string>
     <string name="white">Branco</string>
     <string name="black">Preto</string>
+    <string name="newChannel">Novo Canal</string>
+    <string name="name">Nome</string>
+    <string name="url">Url</string>
+    <string name="add">Adicionar</string>
+    <string name="errorAddingChannel">Erro ao adicionar canal</string>
+    <string name="deleteChannel">Remover Canal</string>
 
 </resources>

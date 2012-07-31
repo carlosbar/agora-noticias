@@ -15,10 +15,9 @@ public class Channel {
 	 */
 	public static ChannelList addChannel(String [] channels []) {
 		ChannelList channelList = new ChannelList();
-		int	position = 0;
 		
 		for(String [] channel : channels) {
-			LocalChannel cl = new LocalChannel(channel[0],channel[1],position++);
+			LocalChannel cl = new LocalChannel(channel[0],channel[1],true);
 			channelList.add(cl);
 		}
 		return channelList;
@@ -30,16 +29,24 @@ public class Channel {
 	public static class LocalChannel {
 		public String	name;
 		public String	url;
-		public int		position;
+		public boolean	staticChannel;
+		boolean checked;
 
-		public LocalChannel(String name,String url,int position) {
+		/**
+		 * default constructor for a local channel
+		 * @param name channel name
+		 * @param url channel feed url
+		 * @param staticChannel is this a static or user created channel?
+		 */
+		public LocalChannel(String name,String url,boolean staticChannel) {
 			this.name = name;
 			this.url = url;
-			this.position = position;
+			this.staticChannel = staticChannel;
 		}
 	}
 	
 	public static class ChannelList extends ArrayList<LocalChannel> {
+
 		/**
 		 * 
 		 */
@@ -58,6 +65,7 @@ public class Channel {
 				try {
 					child.put("name",this.get(x).name);
 					child.put("url",this.get(x).url);
+					child.put("staticChannel",this.get(x).staticChannel);
 					json.put("channel"+x,child);
 				} catch (JSONException e) {
 					e.printStackTrace();
@@ -83,7 +91,7 @@ public class Channel {
 			for(int x=0;json != null && x < json.length();x++) {
 				try {
 					JSONObject o = (JSONObject) json.get("channel"+x);
-					LocalChannel cl = new LocalChannel((String) o.get("name"),(String) o.get("url"),list.size());
+					LocalChannel cl = new LocalChannel((String) o.get("name"),(String) o.get("url"),o.getBoolean("staticChannel"));
 					list.add(cl);
 				} catch (JSONException e) {
 					e.printStackTrace();
@@ -91,8 +99,6 @@ public class Channel {
 			}
 			return list;
 		}
-		
-		
 	
 	}
 	

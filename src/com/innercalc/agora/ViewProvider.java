@@ -304,6 +304,7 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 					document = builder.parse(clist.get(c).url);
 					root = document.getDocumentElement();
 				} catch (Exception e) {
+					Log.d("updateFunction",e.getMessage());
 					continue;
 				}
 				totalUpd++;

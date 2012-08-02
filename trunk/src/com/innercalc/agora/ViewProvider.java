@@ -694,7 +694,8 @@ public class ViewProvider implements RemoteViewsService.RemoteViewsFactory {
 	}
 
 	public void onDestroy() {
-		// TODO Auto-generated method stub
-		
+		if(db != null) {
+			db.close();
+		}
 	}
 }

@@ -19,6 +19,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -178,7 +179,9 @@ public class Configure extends Activity {
 			}
 		});
 		
-		
+		/**
+		 * edit list of channels
+		 */
 		((Button) findViewById(R.id.rssFeeds)).setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
 				final AlertDialog.Builder dlg = new AlertDialog.Builder(Configure.this);
@@ -276,7 +279,7 @@ public class Configure extends Activity {
 						channelList = adapter.itemList;
 					}
 				});
-				dlg.setTitle(R.string.rssFeeds);
+				dlg.setTitle(R.string.rssChannels);
 				dlg.setIcon(R.drawable.ic_launcher);
 				dlg.show();
 			}
@@ -390,6 +393,55 @@ public class Configure extends Activity {
 			TextView tv = (TextView) checkView.findViewById(R.id.title);
 			if(tv != null) {
 				tv.setText(item.name);
+				tv.setTag(item);
+				if(!item.staticChannel) tv.setOnLongClickListener(new OnLongClickListener() {
+					
+					public boolean onLongClick(View v) {
+						final LocalChannel item = (LocalChannel) v.getTag();
+						final AlertDialog.Builder newdlg = new AlertDialog.Builder(Configure.this);
+						final LayoutInflater layoutInflater = LayoutInflater.from(Configure.this);
+						final View editchannel = layoutInflater.inflate(R.layout.newchannel, null);
+						newdlg.setView(editchannel);
+
+						/**
+						 * set current values
+						 */
+						((EditText) editchannel.findViewById(R.id.channelName)).setText(item.name);
+						((EditText) editchannel.findViewById(R.id.url)).setText(item.url);
+						
+						/**
+						 * ok button pressed
+						 */
+						newdlg.setPositiveButton(getString(R.string.ok),new DialogInterface.OnClickListener() {
+							
+							public void onClick(DialogInterface dialog, int which) {
+								final String channelName = ((EditText) editchannel.findViewById(R.id.channelName)).getText().toString();
+								final String url =  ((EditText) editchannel.findViewById(R.id.url)).getText().toString();
+								
+								if(!channelName.isEmpty() && !url.isEmpty()) {
+									item.name = channelName;
+									item.url = url;
+									ChannelAdapter.this.notifyDataSetChanged();
+								} else {
+									Toast.makeText(Configure.this,getString(R.string.errorAddingChannel),Toast.LENGTH_LONG).show();
+								}
+							}
+						});
+
+						/**
+						 * back button pressed
+						 */
+						newdlg.setOnCancelListener(new DialogInterface.OnCancelListener() {
+							public void onCancel(DialogInterface dialog) {
+							}
+						});
+						
+						newdlg.setTitle(R.string.editChannel);
+						newdlg.setIcon(R.drawable.ic_launcher);
+						newdlg.show();
+						return false;
+					}
+				});
 			}
 			ImageView im = (ImageView) checkView.findViewById(R.id.deleteChannel);
 			if(im != null && !item.staticChannel) {

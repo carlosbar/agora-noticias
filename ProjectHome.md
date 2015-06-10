@@ -1,0 +1,1 @@
+Create a widget to show RSS channels on android smartphones and tablets.
